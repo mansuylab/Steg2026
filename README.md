@@ -1,5 +1,5 @@
 # Steg2026
-This repository contains the bioinformatic workflows and analysis scripts used in Steg et al., Working Title (2026).
+This repository contains the bioinformatic workflows and analysis scripts used in Steg et al., (2026).
 
 The repository includes:
 
@@ -9,6 +9,6 @@ Dataset-specific configurations
 
 Custom scripts used for downstream analyses
 
-Code used for figure generation and statistical analyses
+Code used for data visualisation and statistical analyses
 
 All workflows were developed to ensure reproducibility and consistent execution across datasets.
