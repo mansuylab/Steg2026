@@ -1,0 +1,62 @@
+data_dir: /mnt/IM/data/ATAC-Seq/LPD1_Liver/Merged/
+samples:
+  - B6-F1-001
+  - B6-F1-002
+  - B6-F1-004
+  - B6-F1-007
+  - B6-F1-012
+  - B6-F1-015
+  - B6-F1-016
+  - B6-F1-018
+  - B6-F1-030
+  - B6-F1-032
+  - B6-F1-033
+  - B6-F1-034
+  - B6-F1-035
+  - B6-F1-036
+  - B6-F1-037
+  - B6-F1-039
+  - B6-F1-042
+  - B6-F1-043
+  - B6-F1-044
+  - B6-F1-045
+  - B6-F1-047
+  - B6-F1-050
+  - B6-F1-054
+  - B6-F1-055
+  - B6-F1-059
+  - B6-F1-062
+  - B6-F1-063
+  - B6-F1-065
+  - B6-F1-068
+  - B6-F1-071
+  - B6-F1-072
+  - B6-F1-073
+  - B6-F1-074
+  - B6-F1-078
+trimming_params:
+    quality: 30
+    length: 30
+    stringency: 2
+mapping_params:
+    max_insert: 2000
+ref_genome_dir: "/mnt/groupMansuy/kerem/auxiliary/genomes/mm10_bowtie2/mm10"
+ref_genome_dir_SNPsplit: "/mnt/groupMansuy/kerem/auxiliary/genomes/mm10_PWK_PhJ_bowtie2/mm10_PWK_PhJ_bowtie2"
+pwk_SNP_list: "/mnt/groupMansuy/kerem/auxiliary/all_SNPs_PWK_PhJ_GRCm38.txt.gz"
+blacklist_file: "/mnt/groupMansuy/kerem/auxiliary/blacklist_mm10_v2.bed"
+filtering_params:
+    quality: 30
+selecting_NFF_params:
+    min_length: 0
+    max_length: 147
+filtering_peaks_params:
+    threshold: 7.5
+tracks_params:
+    bin_size: 10
+heatmap_peaks_params:
+    upstream: 1000
+    downstream: 1000
+heatmap_tss_params:
+    upstream: 5000
+    downstream: 5000
+ref_TSS: "/mnt/groupMansuy/kerem/auxiliary/refTSS_v3.3_mouse_coordinate.mm10.bed"

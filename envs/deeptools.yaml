@@ -1,0 +1,6 @@
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - deeptools=3.5.4
+  - samtools =1.17

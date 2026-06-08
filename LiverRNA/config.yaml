@@ -1,0 +1,119 @@
+prefix: "LPD1_Liver"
+data_dir: /mnt/IM/data/RNA-Seq/F23A430001774_MUSuowmO/soapnuke/clean/
+run_rseqc: False
+samples:
+  - B6-F0-9
+  - B6-F0-11
+  - B6-F0-12
+  - B6-F0-15
+  - B6-F0-16
+  - B6-F0-18
+  - B6-F0-20
+  - B6-F0-23
+  - B6-F0-26
+  - B6-F0-28
+  - B6-F1-12
+  - B6-F1-15
+  - B6-F1-16
+  - B6-F1-18
+  - B6-F1-1
+  - B6-F1-2
+  - B6-F1-30
+  - B6-F1-32
+  - B6-F1-33
+  - B6-F1-34
+  - B6-F1-35
+  - B6-F1-36
+  - B6-F1-37
+  - B6-F1-39
+  - B6-F1-42
+  - B6-F1-43
+  - B6-F1-44
+  - B6-F1-45
+  - B6-F1-47
+  - B6-F1-4
+  - B6-F1-50
+  - B6-F1-54
+  - B6-F1-55
+  - B6-F1-59
+  - B6-F1-62
+  - B6-F1-65
+  - B6-F1-68
+  - B6-F1-71
+  - B6-F1-72
+  - B6-F1-73
+  - B6-F1-74
+  - B6-F1-78
+  - B6-F1-7
+  - PWK-F0-5
+  - PWK-F0-9
+  - PWK-F0-10
+  - PWK-F0-14
+  - PWK-F0-18
+  - PWK-F0-19
+  - PWK-F0-22
+  - PWK-F0-23
+  - PWK-F1-100
+  - PWK-F1-102
+  - PWK-F1-103
+  - PWK-F1-105
+  - PWK-F1-109
+  - PWK-F1-113
+  - PWK-F1-114
+  - PWK-F1-115
+  - PWK-F1-116
+  - PWK-F1-117
+  - PWK-F1-118
+  - PWK-F1-119
+  - PWK-F1-120
+  - PWK-F1-121
+  - PWK-F1-122
+  - PWK-F1-123
+  - PWK-F1-124
+  - PWK-F1-125
+  - PWK-F1-126
+  - PWK-F1-127
+  - PWK-F1-128
+  - PWK-F1-131
+  - PWK-F1-133
+  - PWK-F1-135
+  - PWK-F1-136
+  - PWK-F1-138
+  - PWK-F1-140
+  - PWK-F1-143
+  - PWK-F1-144
+  - PWK-F1-147
+  - PWK-F1-148
+  - PWK-F1-157
+  - PWK-F1-82
+  - PWK-F1-83
+  - PWK-F1-84
+  - PWK-F1-86
+  - PWK-F1-88
+  - PWK-F1-89
+  - PWK-F1-91
+  - PWK-F1-95
+  - PWK-F1-98
+trimming_params:
+    quality: 30
+    length: 30
+    stringency: 2
+fastq_screen_conf: "/mnt/IM/groupMansuy/kerem/auxiliary/conf/fastq_screen.conf"
+salmon_index_dir: "/mnt/groupMansuy/kerem/auxiliary/genomes/mm10_salmon_index"
+star_genome_dir: "/mnt/groupMansuy/kerem/auxiliary/genomes/mm10_star_125_refGene"
+pwk_star_genome_dir_v3: "/mnt/groupMansuy/kerem/auxiliary/genomes/mm10_PWK_PhJ_star_v3"
+pwk_SNP_list: "/mnt/groupMansuy/kerem/auxiliary/all_SNPs_PWK_PhJ_GRCm38.txt.gz"
+GTF_file: "/mnt/groupMansuy/kerem/auxiliary/genomes/mm10_raw/mm10.refGene.gtf"
+GTF_file_v3: "/mnt/groupMansuy/kerem/auxiliary/genomes/mm10_raw/mm10.refGene_modified.gtf"
+bed_file: "/mnt/groupMansuy/kerem/auxiliary/genomes/mm10_raw/mm10.knownGene.bed12"
+ANALYSIS_DIRS:
+  - 01_FastQC_raw_data
+  - 02_trimmed_data
+  - 03_FastQC_trimmed_data
+  - 04_FQScreen_trimmed_data
+  - 05_salmon_quant
+  - 06_star_aligned
+  - 07_markdup
+  - 09_GeneBodyCov
+  - 11_snpsplit
+  - 12_salmon_post_snpsplit

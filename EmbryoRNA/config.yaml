@@ -1,0 +1,118 @@
+prefix: "LPD2_EmbryoRNA"
+data_dir: /mnt/IM/groupMansuy/leo/LPD2/EmbryoRNA/manual_umi_extraction/
+run_rseqc: True
+samples:
+  - TwoCell_001
+  - TwoCell_002
+  - TwoCell_003
+  - TwoCell_004
+  - TwoCell_006
+  - TwoCell_007
+  - TwoCell_009
+  - TwoCell_010
+  - TwoCell_011
+  - TwoCell_015
+  - TwoCell_016
+  - TwoCell_018
+  - TwoCell_019
+  - TwoCell_020
+  - TwoCell_021
+  - TwoCell_022
+  - TwoCell_023
+  - TwoCell_024
+  - TwoCell_026
+  - TwoCell_027
+  - TwoCell_028
+  - TwoCell_029
+  - TwoCell_031
+  - TwoCell_032
+  - TwoCell_033
+  - TwoCell_034
+  - TwoCell_035
+  - TwoCell_036
+  - TwoCell_037
+  - TwoCell_038
+  - TwoCell_039
+  - TwoCell_040
+  - TwoCell_041
+  - TwoCell_042
+  - TwoCell_049
+  - TwoCell_050
+  - TwoCell_051
+  - TwoCell_052
+  - TwoCell_053
+  - TwoCell_054
+  - TwoCell_056
+  - TwoCell_057
+  - TwoCell_060
+  - TwoCell_061
+  - TwoCell_062
+  - TwoCell_064
+  - TwoCell_066
+  - TwoCell_068
+  - TwoCell_069
+  - TwoCell_070
+  - TwoCell_072
+  - TwoCell_073
+  - TwoCell_075
+  - TwoCell_076
+  - TwoCell_078
+  - TwoCell_079
+  - TwoCell_080
+  - TwoCell_081
+  - TwoCell_082
+  - TwoCell_083
+  - TwoCell_084
+  - TwoCell_085
+  - TwoCell_086
+  - TwoCell_087
+  - TwoCell_088
+  - TwoCell_129
+  - TwoCell_130
+  - TwoCell_131
+  - TwoCell_132
+  - TwoCell_134
+  - TwoCell_135
+  - TwoCell_136
+  - TwoCell_137
+  - TwoCell_138
+  - TwoCell_139
+  - TwoCell_140
+  - TwoCell_141
+  - TwoCell_142
+  - TwoCell_143
+  - TwoCell_144
+  - TwoCell_145
+  - TwoCell_146
+  - TwoCell_147
+  - TwoCell_148
+  - TwoCell_149
+  - TwoCell_150
+  - TwoCell_151
+trimming_params:
+    quality: 30
+    length: 30
+    stringency: 2
+fastq_screen_conf: "/mnt/IM/groupMansuy/kerem/auxiliary/conf/fastq_screen.conf"
+salmon_index_dir: "/mnt/groupMansuy/kerem/auxiliary/genomes/mm10_salmon_index"
+star_genome_dir: "/mnt/groupMansuy/kerem/auxiliary/genomes/mm10_star_125_refGene"
+pwk_star_genome_dir_v3: "/mnt/groupMansuy/kerem/auxiliary/genomes/mm10_PWK_PhJ_star_v3"
+pwk_SNP_list: "/mnt/groupMansuy/kerem/auxiliary/all_SNPs_PWK_PhJ_GRCm38.txt.gz"
+GTF_file: "/mnt/groupMansuy/kerem/auxiliary/genomes/mm10_raw/mm10.refGene.gtf"
+GTF_file_v3: "/mnt/groupMansuy/kerem/auxiliary/genomes/mm10_raw/mm10.refGene_modified.gtf"
+bed_file: "/mnt/groupMansuy/kerem/auxiliary/genomes/mm10_raw/mm10.knownGene.bed12"
+ANALYSIS_DIRS:
+  - 01_FastQC_raw_data
+  - 02_trimmed_data
+  - 03_FastQC_trimmed_data
+  - 05_salmon_quant
+  - 06_star_aligned
+  - 07_markdup
+  - 09_umi_deduplicated
+  - 10_salmon_post_dedup
+  - 12_GeneBodyCov
+  - 13_star_aligned_pwk_v3
+  - 14_snpsplit
+  - 15_salmon_post_snpsplit
+
+  

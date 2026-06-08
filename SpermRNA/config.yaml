@@ -1,0 +1,46 @@
+data_dir: /mnt/IM/data/RNA-Seq/LPD2_Sperm/merged_files/
+run_rseqc: True
+samples:
+  - B6-F0-03
+  - B6-F0-05
+  - B6-F0-06
+  - B6-F0-09
+  - B6-F0-11
+  - B6-F0-15
+  - B6-F0-20
+  - B6-F0-24
+  - B6-F0-25
+  - B6-F0-26
+  - B6-F0-36
+  - B6-F0-38
+  - B6-F0-44
+  - B6-F0-61
+  - B6-F0-64
+  - B6-F0-66  
+trimming_params:
+    quality: 30
+    length: 30
+    stringency: 2
+fastq_screen_conf: "/mnt/IM/groupMansuy/kerem/auxiliary/conf/fastq_screen.conf"
+salmon_index_dir: "/mnt/groupMansuy/kerem/auxiliary/genomes/mm10_salmon_index"
+star_genome_dir: "/mnt/groupMansuy/kerem/auxiliary/genomes/mm10_star_125_refGene"
+star_genome_dir_TE: "/mnt/groupMansuy/kerem/auxiliary/genomes/mm10_star_125_GENCODE_rmsk_TE"
+GTF_file: "/mnt/groupMansuy/kerem/auxiliary/genomes/mm10_raw/mm10.refGene.gtf"
+GTF_file_TE: "/mnt/groupMansuy/kerem/auxiliary/genomes/mm10_raw/GRCm38_GENCODE_rmsk_TE.gtf"
+bed_file: "/mnt/groupMansuy/kerem/auxiliary/genomes/mm10_raw/mm10.knownGene.bed12"
+sortmerna_ref:
+  - /mnt/groupMansuy/kerem/auxiliary/genome/rRNA_databases/silva-euk-28s-id98.fasta
+  - /mnt/groupMansuy/kerem/auxiliary/genome/rRNA_databases/silva-euk-18s-id95.fasta
+ANALYSIS_DIRS:
+  - 01_FastQC_raw_data
+  - 03_trimmed_data
+  - 04_FastQC_trimmed_data
+  - 05_FQScreen_trimmed_data
+  - 07_FastQC_sortmernaed_data
+  - 08_FQScreen_sortmernaed_data
+  - 10_star_aligned
+  - 11_umi_deduplicated
+  - 12_salmon_post_dedup
+  - 15_GeneBodyCov
+  - 16_star_aligned_TE
+  - 17_featureCounts_TE

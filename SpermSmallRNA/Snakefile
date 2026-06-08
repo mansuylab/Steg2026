@@ -1,0 +1,311 @@
+configfile: "config.yaml"
+
+# Expand analysis directories for rule all targets
+analysis_targets = []
+for analysis in config["ANALYSIS_DIRS"]:
+    # Skip if run_rseqc is False and the analysis is 12_GeneBodyCov
+    if (not config["run_rseqc"] and analysis == "12_GeneBodyCov"):
+        continue
+    analysis_targets.append(f"results/02_qc_plots/{analysis}/multiqc_report.html")
+
+output_files = [
+
+]
+
+# For output files per sample:
+output_files.extend(
+    expand(
+        [
+        "results/01_preprocess/01_FastQC_raw_data/{sample}_R1_fastqc.html",
+        "results/01_preprocess/03_FastQC_trimmed_data/{sample}_R1_trimmed_fastqc.html",
+        "results/01_preprocess/04_FQScreen_trimmed_data/{sample}_R1_trimmed_screen.html",
+        "results/01_preprocess/07_mirna_counts/{sample}.sortedByCoord.miRNA_miRBase_Count.bed",
+        "results/01_preprocess/08_pirna_counts/{sample}.sortedByCoord.piRNA_Count.bed",
+        "results/01_preprocess/11_trna_counts/{sample}.sortedByCoord.tRNA_Count.bed"
+        ],
+        sample=config["samples"]
+    )
+)
+
+# Adding analysis_targets to the list of input files (Multiqc outputs)
+output_files.extend(analysis_targets)
+
+rule all:
+    input:
+        output_files
+
+rule fqc_raw_data_R1:
+    input:
+        fastq=config["data_dir"] + "{sample}_R1.fastq.gz"
+    output:
+        html="results/01_preprocess/01_FastQC_raw_data/{sample}_R1_fastqc.html",
+        zip="results/01_preprocess/01_FastQC_raw_data/{sample}_R1_fastqc.zip"
+    log:
+        "logs/01_FastQC_rawdata/{sample}_1.log"
+    conda:
+        "envs/fastq.yaml"
+    threads: 2
+    shell:
+        "fastqc -t {threads} -o results/01_preprocess/01_FastQC_raw_data/ {input.fastq} > {log} 2>&1"
+
+rule trimming:
+    input:
+        read1=config["data_dir"] + "{sample}_R1.fastq.gz"
+    output:
+        trimmed1="results/01_preprocess/02_trimmed_data/{sample}_R1_trimmed.fq.gz"
+    params:
+        quality=config["trimming_params"]["quality"],
+        min_length=config["trimming_params"]["min_length"],
+        max_length=config["trimming_params"]["max_length"]
+    log:
+        "logs/02_trimming/{sample}_trimming.log"
+    conda:
+        "envs/trimg.yaml"
+    threads: 2
+    shell:
+        """
+        trim_galore {input.read1} \
+            --small_rna \
+            -q {params.quality} \
+            --length {params.min_length} \
+            --max_length {params.max_length} \
+            --output_dir results/01_preprocess/02_trimmed_data/ \
+            > {log} 2>&1
+        """
+
+rule fqc_trimmed_data_R1:
+    input:
+        trimmed_fq="results/01_preprocess/02_trimmed_data/{sample}_R1_trimmed.fq.gz"
+    output:
+        html="results/01_preprocess/03_FastQC_trimmed_data/{sample}_R1_trimmed_fastqc.html",
+        zip="results/01_preprocess/03_FastQC_trimmed_data/{sample}_R1_trimmed_fastqc.zip"
+    log:
+        "logs/03_FastQC_trimmed/{sample}_1_trimmed.log"
+    conda:
+        "envs/fastq.yaml"
+    threads: 2
+    shell:
+        "fastqc -t {threads} -o results/01_preprocess/03_FastQC_trimmed_data/ {input.trimmed_fq} > {log} 2>&1"
+
+
+rule fqscreen_trimmed_data_R1:
+    input:
+        trimmed_fq="results/01_preprocess/02_trimmed_data/{sample}_R1_trimmed.fq.gz"
+    output:
+        trimmed_fqscreen_html="results/01_preprocess/04_FQScreen_trimmed_data/{sample}_R1_trimmed_screen.html",
+        trimmed_fqscreen_txt="results/01_preprocess/04_FQScreen_trimmed_data/{sample}_R1_trimmed_screen.txt"
+    log:
+        trimmed="logs/04_FQScreen_trimmed_data/{sample}_1_trimmed.log",
+    conda:
+        "envs/fqscreen.yaml"
+    threads: 2
+    shell:
+        """
+        fastq_screen --aligner bowtie2 --threads {threads} \
+        --conf {config[fastq_screen_conf]} \
+        --outdir results/01_preprocess/04_FQScreen_trimmed_data {input.trimmed_fq} > {log.trimmed} 2>&1
+        """
+
+rule mapping_bowtie:
+    input:
+        read1="results/01_preprocess/02_trimmed_data/{sample}_R1_trimmed.fq.gz"
+    output:
+        aligned_fq1="results/01_preprocess/05_bowtie_mapped/{sample}_aligned.fq",
+        sam="results/01_preprocess/05_bowtie_mapped/{sample}.sam"
+    log:
+        "logs/05_bowtie_mapping/{sample}_bowtie.log"
+    conda:
+        "envs/bowtie1.yaml"
+    threads: 2
+    shell:
+        """
+        mkdir -p temp_mapping
+
+        gunzip -c {input.read1} > temp_mapping/{wildcards.sample}_R1.fq
+
+        bowtie -v 0 -k 1 --best \
+            --al results/01_preprocess/05_bowtie_mapped/{wildcards.sample}_aligned.fq \
+            --sam {config[genome_dir]} \
+            temp_mapping/{wildcards.sample}_R1.fq \
+            > {output.sam} 2> {log}
+
+        rm temp_mapping/{wildcards.sample}_R1.fq
+        """
+
+rule sam2bam2bed:
+    input:
+        sam="results/01_preprocess/05_bowtie_mapped/{sample}.sam"
+    output:
+        bam="results/01_preprocess/06_bowtie_bambed/{sample}.sortedByCoord.bam",
+        bai="results/01_preprocess/06_bowtie_bambed/{sample}.sortedByCoord.bam.bai",
+        bed="results/01_preprocess/06_bowtie_bambed/{sample}.sortedByCoord.bed"
+    log:
+        "logs/06_sam2bam2bed/{sample}.log"
+    conda:
+        "envs/samtools.yaml"
+    threads: 2
+    shell:
+        """
+        # Step 1: Convert SAM to BAM
+        samtools view -@ {threads} -b -o temp_{wildcards.sample}.bam {input.sam}
+
+        # Step 2: Sort BAM
+        samtools sort -@ {threads} -o {output.bam} temp_{wildcards.sample}.bam
+
+        # Step 3: Index BAM
+        samtools index {output.bam}
+
+        # Step 4: Convert BAM to BED
+        bedtools bamtobed -i {output.bam} > {output.bed}
+
+        # Cleanup
+        rm temp_{wildcards.sample}.bam 
+        """
+
+rule mirna_counts_all_refs:
+    input:
+        bed="results/01_preprocess/06_bowtie_bambed/{sample}.sortedByCoord.bed"
+    output:
+        mirbase_count="results/01_preprocess/07_mirna_counts/{sample}.sortedByCoord.miRNA_miRBase_Count.bed",
+        mirgene_count="results/01_preprocess/07_mirna_counts/{sample}.sortedByCoord.miRGene_Count.bed",
+        mirbase_pt_count="results/01_preprocess/07_mirna_counts/{sample}.sortedByCoord.miRNA_miRBase_primarytranscript_Count.bed",
+        mirbase_3p5p_count="results/01_preprocess/07_mirna_counts/{sample}.sortedByCoord.miRNA_miRBase_3p5p_Nofilt_Count.bed"
+    log:
+        "logs/07_mirna_counts/{sample}_mirna_count.log"
+    conda:
+        "envs/samtools.yaml"
+    shell:
+        """
+        mkdir -p results/01_preprocess/07_mirna_counts
+
+        echo "Counting miRNAs for sample {wildcards.sample}" > {log}
+
+        bedtools intersect -c -a {config[mirbase_ref]} -b {input.bed} \
+            > {output.mirbase_count} 2>> {log}
+
+        bedtools intersect -c -a {config[mirgene_ref]} -b {input.bed} \
+            > {output.mirgene_count} 2>> {log}
+
+        bedtools intersect -c -F 1.0 -a {config[mirbase_pt_ref]} -b {input.bed} \
+            > {output.mirbase_pt_count} 2>> {log}
+
+        bedtools intersect -c -a {config[mirbase_3p5p_ref]} -b {input.bed} \
+            > {output.mirbase_3p5p_count} 2>> {log}
+        """
+rule pirna_counts:
+    input:
+        bed="results/01_preprocess/06_bowtie_bambed/{sample}.sortedByCoord.bed"
+    output:
+        pirna_count="results/01_preprocess/08_pirna_counts/{sample}.sortedByCoord.piRNA_Count.bed"
+    log:
+        "logs/08_pirna_counts/{sample}_pirna_count.log"
+    conda:
+        "envs/samtools.yaml"
+    shell:
+        """
+        echo "Counting piRNAs for sample {wildcards.sample}" > {log}
+
+        bedtools intersect -c -a {config[pirna_ref]} \
+                           -b {input.bed} \
+            > {output.pirna_count} 2>> {log}
+        """
+
+rule mapping_bowtie_GRCm39:
+    input:
+        read1="results/01_preprocess/02_trimmed_data/{sample}_R1_trimmed.fq.gz"
+    output:
+        aligned_fq1="results/01_preprocess/09_bowtie_mapped_GRCm39/{sample}_aligned.fq",
+        sam="results/01_preprocess/09_bowtie_mapped_GRCm39/{sample}.sam"
+    log:
+        "logs/09_bowtie_mapping_GRCm39/{sample}_bowtie.log"
+    conda:
+        "envs/bowtie1.yaml"
+    threads: 5
+    shell:
+        """
+        mkdir -p temp_mapping
+
+        gunzip -c {input.read1} > temp_mapping/{wildcards.sample}.fq
+
+        bowtie -v 0 -k 1 --best \
+            --al results/01_preprocess/09_bowtie_mapped_GRCm39/{wildcards.sample}_aligned.fq \
+            --sam {config[genome_dir_GRCm39]} \
+            temp_mapping/{wildcards.sample}.fq \
+            > {output.sam} 2> {log}
+
+        rm temp_mapping/{wildcards.sample}.fq
+        """
+
+rule sam2bam2bed_GRCm39:
+    input:
+        sam="results/01_preprocess/09_bowtie_mapped_GRCm39/{sample}.sam"
+    output:
+        bam="results/01_preprocess/10_bowtie_bambed_GRCm39/{sample}.sortedByCoord.bam",
+        bai="results/01_preprocess/10_bowtie_bambed_GRCm39/{sample}.sortedByCoord.bam.bai",
+        bed="results/01_preprocess/10_bowtie_bambed_GRCm39/{sample}.sortedByCoord.bed"
+    log:
+        "logs/10_sam2bam2bed_GRCm39/{sample}.log"
+    conda:
+        "envs/samtools.yaml"
+    threads: 2
+    shell:
+        """
+        # Step 1: Convert SAM to BAM
+        samtools view -@ {threads} -b -o temp_{wildcards.sample}.bam {input.sam}
+
+        # Step 2: Sort BAM
+        samtools sort -@ {threads} -o {output.bam} temp_{wildcards.sample}.bam
+
+        # Step 3: Index BAM
+        samtools index {output.bam}
+
+        # Step 4: Convert BAM to BED
+        bedtools bamtobed -i {output.bam} > {output.bed}
+
+        # Cleanup
+        rm temp_{wildcards.sample}.bam 
+        """
+        
+rule trna_counts:
+    input:
+        bed="results/01_preprocess/10_bowtie_bambed_GRCm39/{sample}.sortedByCoord.bed"
+    output:
+        trna_count="results/01_preprocess/11_trna_counts/{sample}.sortedByCoord.tRNA_Count.bed"
+    log:
+        "logs/11_trna_counts/{sample}_trna_count.log"
+    conda:
+        "envs/samtools.yaml"
+    shell:
+        """
+        echo "Counting tRNAs for sample {wildcards.sample}" > {log}
+
+        bedtools intersect -c -a {config[trna_ref]} -b {input.bed} \
+            > {output.trna_count} 2>> {log}
+        """
+
+
+def multiqc_inputs(wildcards):
+    inputs = []
+    
+    if config["run_rseqc"]:
+        inputs.extend([
+        ])
+    return inputs
+
+
+rule multiqc:
+    input:
+        multiqc_inputs
+    output:
+        html="results/02_qc_plots/{analysis}/multiqc_report.html"
+    params:
+        outdir="results/02_qc_plots/{analysis}",
+        configfile="envs/multiqc_config.yaml"
+    log:
+        "logs/12_multiqc/{analysis}.log"
+    conda:
+        "envs/multiqc.yaml"
+    shell:
+        """
+        multiqc -c {params.configfile} -o {params.outdir} results/01_preprocess/{wildcards.analysis} -p -s -d --interactive  > {log} 2>&1
+        """

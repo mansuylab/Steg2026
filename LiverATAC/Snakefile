@@ -1,0 +1,824 @@
+configfile: "config.yaml"
+
+# Infer groups based on sample names in config
+groups = {
+    'B6-F0': [s for s in config["samples"] if s.startswith('B6-F0')],
+    'B6-F1': [s for s in config["samples"] if s.startswith('B6-F1')],
+    'PWK-F0': [s for s in config["samples"] if s.startswith('PWK-F0')]
+}
+
+# For single output files for all samples:
+output_files = [
+  "results/qc_plots_02/03_filtered_peaks/peaks_barplot.png",
+  "results/qc_plots_02/04_tssscores/combined_TSS_Plot.pdf",
+  "results/qc_plots_02/07_multibam/correlation.NF.pdf",
+  "results/qc_plots_02/10_pbc_metrics/combined_PBC_Metrics.txt",
+  "results/qc_plots_02/11_frip_scores/combined_frip_scores.txt"
+  ]
+
+# For output files per sample:
+output_files.extend(
+    expand(
+        [
+        "results/qc_plots_02/01_FastQC_raw_data/{sample}_R1_fastqc.html",
+        "results/qc_plots_02/01_FastQC_raw_data/{sample}_R2_fastqc.html",
+        "results/qc_plots_02/02_FastQC_trimmed_data/{sample}_R1_val_1_fastqc.html",
+        "results/qc_plots_02/02_FastQC_trimmed_data/{sample}_R2_val_2_fastqc.html",
+        "results/preprocess_01/10_filtered_peaks/{sample}_peaks.narrowPeak",
+        "results/preprocess_01/11_tracks/{sample}.bw",
+        "results/qc_plots_02/05_heatmaps/no_spm_{sample}.mat.gz",
+        "results/qc_plots_02/06_heatmaps_tss/no_spm_{sample}.mat.gz",
+        "results/qc_plots_02/08_fragSizeDist/{sample}_fragSizeDist.pdf",
+        "results/qc_plots_02/09_tss_enrichment_plots/{sample}_TSS_enrichment_plot.pdf",
+        "results/preprocess_01/16_snpsplit/{sample}.dedup.genome1.bam",
+        "results/preprocess_01/16_snpsplit/{sample}.dedup.genome2.bam"
+        ],
+        sample=config["samples"]
+    )
+)
+
+# Adding output files per group:
+output_files.extend(
+    expand("results/qc_plots_02/06_heatmaps_tss/multiheatmap_{group}.pdf", group=[g for g in groups.keys() if groups[g]])
+)
+
+
+rule all:
+    input:
+        output_files
+
+rule fqc_raw_data_R1:
+    input:
+        fastq=config["data_dir"] + "{sample}_R1.fastq.gz"
+    output:
+        html="results/qc_plots_02/01_FastQC_raw_data/{sample}_R1_fastqc.html",
+        zip="results/qc_plots_02/01_FastQC_raw_data/{sample}_R1_fastqc.zip"
+    log:
+        "logs/01_FastQC_rawdata/{sample}_R1.log"
+    conda:
+        "envs/fastq.yaml"
+    threads: 1
+    shell:
+        "fastqc -t {threads} -o results/qc_plots_02/01_FastQC_raw_data/ {input.fastq} > {log} 2>&1"
+
+rule fqc_raw_data_R2:
+    input:
+        fastq=config["data_dir"] + "{sample}_R2.fastq.gz"
+    output:
+        html="results/qc_plots_02/01_FastQC_raw_data/{sample}_R2_fastqc.html",
+        zip="results/qc_plots_02/01_FastQC_raw_data/{sample}_R2_fastqc.zip"
+    log:
+        "logs/01_FastQC_rawdata/{sample}_R2.log"
+    conda:
+        "envs/fastq.yaml"
+    threads: 1
+    shell:
+        "fastqc -t {threads} -o results/qc_plots_02/01_FastQC_raw_data/ {input.fastq} > {log} 2>&1"
+
+rule trimming:
+    input:
+        read1=config["data_dir"] + "{sample}_R1.fastq.gz",
+        read2=config["data_dir"] + "{sample}_R2.fastq.gz"
+    output:
+        trimmed1="results/preprocess_01/01_trimmed_data/{sample}_R1_val_1.fq.gz",
+        trimmed2="results/preprocess_01/01_trimmed_data/{sample}_R2_val_2.fq.gz"
+    params:
+        quality=config["trimming_params"]["quality"],
+        length=config["trimming_params"]["length"],
+        stringency=config["trimming_params"]["stringency"]
+    log:
+        "logs/02_trimming/{sample}_trimming.log"
+    threads: 2
+    conda:
+        "envs/trimg.yaml"
+    shell:
+        """
+        trim_galore --paired \
+            -q {params.quality} \
+            --length {params.length} \
+            --trim-n \
+            --stringency {params.stringency} \
+            --output_dir results/preprocess_01/01_trimmed_data/ \
+            {input.read1} {input.read2} \
+            > {log} 2>&1
+        """
+
+rule fqc_trimmed_data_R1:
+    input:
+        trimmed_fq="results/preprocess_01/01_trimmed_data/{sample}_R1_val_1.fq.gz"
+    output:
+        html="results/qc_plots_02/02_FastQC_trimmed_data/{sample}_R1_val_1_fastqc.html",
+        zip="results/qc_plots_02/02_FastQC_trimmed_data/{sample}_R1_val_1_fastqc.zip"
+    log:
+        "logs/03_FastQC_trimmed/{sample}_R1_trimmed.log"
+    conda:
+        "envs/fastq.yaml"
+    threads: 1
+    shell:
+        "fastqc -t {threads} -o results/qc_plots_02/02_FastQC_trimmed_data/ {input.trimmed_fq} > {log} 2>&1"
+
+rule fqc_trimmed_data_R2:
+    input:
+        trimmed_fq="results/preprocess_01/01_trimmed_data/{sample}_R2_val_2.fq.gz"
+    output:
+        html="results/qc_plots_02/02_FastQC_trimmed_data/{sample}_R2_val_2_fastqc.html",
+        zip="results/qc_plots_02/02_FastQC_trimmed_data/{sample}_R2_val_2_fastqc.zip"
+    log:
+        "logs/03_FastQC_trimmed/{sample}_R2_trimmed.log"
+    conda:
+        "envs/fastq.yaml"
+    threads: 1
+    shell:
+        "fastqc -t {threads} -o results/qc_plots_02/02_FastQC_trimmed_data/ {input.trimmed_fq} > {log} 2>&1"
+
+rule mapping:
+    input:
+        read1 = "results/preprocess_01/01_trimmed_data/{sample}_R1_val_1.fq.gz",
+        read2 = "results/preprocess_01/01_trimmed_data/{sample}_R2_val_2.fq.gz"
+    output:
+        bam = temp("results/preprocess_01/02_mapped/{sample}.bam")
+    params:
+        max_insert=config["mapping_params"]["max_insert"]
+    log:
+        "logs/04_mapping/{sample}_mapped.log"
+    conda:
+        "envs/bowtie2.yaml"
+    threads: 7
+    shell:
+        """
+        bowtie2 -X {params.max_insert} --end-to-end --very-sensitive -p {threads} \
+        -x {config[ref_genome_dir]} -1 {input.read1} -2 {input.read2} 2>{log} | \
+        samtools view -h -bS - | samtools sort -@{threads} -m 2G -O bam - > {output.bam}
+        """
+
+rule filtering:
+    input:
+        bam = "results/preprocess_01/02_mapped/{sample}.bam"
+    output:
+        filtered_bam = temp("results/preprocess_01/03_filtered/{sample}.filtered.bam"),
+        marked_bam = temp("results/preprocess_01/03_filtered/{sample}.marked.bam")
+    params:
+        quality=config["filtering_params"]["quality"]
+    log:
+        before="logs/05_filtering/{sample}.before",
+        dups="logs/05_filtering/{sample}.dups",
+        filtered="logs/05_filtering/{sample}.filtered",
+        picard_stderr="logs/05_filtering/{sample}.picard.stderr.log"
+
+    conda:
+        "envs/filtering.yaml"
+    threads: 7
+    shell:
+        """
+        # Function
+        samtools stats {input.bam} > {log.before}
+        
+        # Picard step
+        picard MarkDuplicates -I {input.bam} -M {log.dups} \
+        -O {output.marked_bam} --REMOVE_DUPLICATES false \
+        -Djava.io.tmpdir=/mnt/IM/tmp/ 2>{log.picard_stderr}
+        
+        # Bedtools intersect and further filtering
+        bedtools intersect -v -a {output.marked_bam} -b {config[blacklist_file]} | \
+        samtools view -h --threads {threads} -q {params.quality} -F 0x4 | \
+        egrep -v chrM | \
+        samtools view -b --threads {threads} > {output.filtered_bam}
+        
+        # Generate filtered stats
+        samtools stats {output.filtered_bam} > {log.filtered}
+        """
+
+rule sorting:
+    input:
+        bam="results/preprocess_01/03_filtered/{sample}.filtered.bam"
+    output:
+        sorted_bam="results/preprocess_01/04_sorted/{sample}.bam",
+        sorted_bam_index="results/preprocess_01/04_sorted/{sample}.bam.bai"
+    log:
+        "logs/06_sorting/{sample}_sorted.log"
+    conda:
+        "envs/sorting.yaml"
+    threads: 4
+    shell:
+        """
+        echo "[INFO] Sorting filtered fragments" >> {log}
+
+        # Sorting
+        samtools sort -o {output.sorted_bam} -@ {threads} {input.bam} 2>> {log}
+        
+        echo "[INFO] Indexing sorted fragments" >> {log}
+
+        # Indexing
+        samtools index -@ {threads} {output.sorted_bam} 2>> {log}
+        """
+
+rule remove_duplicates:
+    input:
+        sorted_bam="results/preprocess_01/04_sorted/{sample}.bam"
+    output:
+        dedup_bam=temp("results/preprocess_01/05_deduplicated/{sample}.dedup.bam"),
+        dedup_bam_index=temp("results/preprocess_01/05_deduplicated/{sample}.dedup.bam.bai"),
+        metrics="results/preprocess_01/05_deduplicated/{sample}.metrics.txt"
+    log:
+        picard_log="logs/07_remove_duplicates/{sample}.picard.log",
+        index_log="logs/07_remove_duplicates/{sample}.index.log"
+    conda:
+        "envs/filtering.yaml"
+    threads: 3
+    shell:
+        """
+        echo "[INFO] Removing duplicates from sorted BAM" >> {log.picard_log}
+
+        # Picard MarkDuplicates for removing duplicates
+        picard MarkDuplicates -I {input.sorted_bam} -O {output.dedup_bam} \
+        -M {output.metrics} --REMOVE_DUPLICATES true \
+        -Djava.io.tmpdir=/mnt/IM/tmp/ 2>> {log.picard_log}
+
+        echo "[INFO] Indexing deduplicated BAM" >> {log.index_log}
+
+        # Indexing the deduplicated BAM
+        samtools index -@ {threads} {output.dedup_bam} 2>> {log.index_log}
+        """
+
+rule sort_deduplicated:
+    input:
+        dedup_bam="results/preprocess_01/05_deduplicated/{sample}.dedup.bam"
+    output:
+        sorted_bam=temp("results/preprocess_01/06_sorted_dedup/{sample}.sorted.bam"),
+        sorted_bam_index=temp("results/preprocess_01/06_sorted_dedup/{sample}.sorted.bam.bai")
+    log:
+        sort_log="logs/08_sort_deduplicated/{sample}_sort.log",
+        index_log="logs/08_sort_deduplicated/{sample}_index.log"
+    conda:
+        "envs/sorting.yaml"
+    threads: 3
+    shell:
+        """
+        echo "[INFO] Sorting deduplicated BAM file" >> {log.sort_log}
+
+        # Sorting the deduplicated BAM file
+        samtools sort -o {output.sorted_bam} -@ {threads} {input.dedup_bam} 2>> {log.sort_log}
+        
+        echo "[INFO] Indexing sorted deduplicated BAM file" >> {log.index_log}
+
+        # Indexing the sorted deduplicated BAM file
+        samtools index -@ {threads} {output.sorted_bam} 2>> {log.index_log}
+        """
+
+rule tn5_shifting:
+    input:
+        bam="results/preprocess_01/06_sorted_dedup/{sample}.sorted.bam"
+    output:
+        shifted_bam=temp("results/preprocess_01/07_shifted/{sample}.shifted.bam"),
+        shifted_sorted_bam="results/preprocess_01/07_shifted/{sample}.shifted.sorted.bam",
+        shifted_sorted_bam_index="results/preprocess_01/07_shifted/{sample}.shifted.sorted.bam.bai",
+        filteredout_reads="results/preprocess_01/07_shifted/{sample}.filteredout.bam",
+    log:
+        log_err="logs/09_tn5_shifting/{sample}_shift.log",
+        log_metrics="logs/09_tn5_shifting/{sample}_shift_metrics.log"
+    conda:
+        "envs/deeptools.yaml"
+    threads: 4
+    shell:
+        """
+        # Applying the Tn5 shift using alignmentSieve
+        alignmentSieve \
+        --numberOfProcessors {threads} \
+        -v \
+        --filterMetrics {log.log_metrics} \
+        --bam {input.bam} \
+        --ATACshift \
+        --outFile {output.shifted_bam} \
+        --filteredOutReads {output.filteredout_reads} \
+        > {log.log_err} 2>&1
+
+        echo "[INFO] Sorting shifted fragments" >> {log.log_err}
+
+        # Sorting
+        samtools sort -o {output.shifted_sorted_bam} -@ {threads} {output.shifted_bam} 2>> {log.log_err}
+
+        echo "[INFO] Indexing shifted+sorted fragments" >> {log.log_err}
+
+        # Indexing the shifted bam file
+        samtools index -@ {threads} {output.shifted_sorted_bam} 2>> {log.log_err}
+        """
+
+rule selecting_NFF:
+    input:
+        bam="results/preprocess_01/07_shifted/{sample}.shifted.sorted.bam"
+    output:
+        nf_temp_bam=temp("results/preprocess_01/08_NF/{sample}.tmp.bam"),
+        nf_bam="results/preprocess_01/08_NF/{sample}.bam",
+        nf_bam_index="results/preprocess_01/08_NF/{sample}.bam.bai"
+    params:
+        min_length=config["selecting_NFF_params"]["min_length"],
+        max_length=config["selecting_NFF_params"]["max_length"]
+    log:
+        "logs/10_NFF/{sample}_NFF.log"
+    conda:
+        "envs/deeptools.yaml"
+    threads: 4
+    shell:
+        """
+        echo "[INFO] Starting nucleosome-free fragment filtering" >> {log}
+
+        # Filtering nucleosome-free fragments
+        alignmentSieve \
+        --numberOfProcessors {threads} \
+        --bam {input.bam} \
+        --minFragmentLength {params.min_length} \
+        --maxFragmentLength {params.max_length} \
+        --outFile {output.nf_temp_bam} \
+        2>> {log}
+
+        echo "[INFO] Sorting filtered fragments" >> {log}
+
+        # Sorting
+        samtools sort -o {output.nf_bam} -@ {threads} {output.nf_temp_bam} 2>> {log}
+
+        echo "[INFO] Indexing sorted fragments" >> {log}
+
+        # Indexing
+        samtools index -@ {threads} {output.nf_bam} 2>> {log}
+        """
+
+rule peak_calling:
+    input:
+        bam="results/preprocess_01/08_NF/{sample}.bam"
+    output:
+        peak="results/preprocess_01/09_peaks/{sample}_peaks.narrowPeak",
+        summits="results/preprocess_01/09_peaks/{sample}_summits.bed",
+        xls="results/preprocess_01/09_peaks/{sample}_peaks.xls"
+    params:
+        genome="mm",
+        keep_dup="auto"
+    log:
+        "logs/11_peak_calling/{sample}.log"
+    conda:
+        "envs/macs2.yaml"
+    shell:
+        """
+        macs2 callpeak -f BAMPE \
+                       -g {params.genome} \
+                       --keep-dup {params.keep_dup} \
+                       --nomodel \
+                       --nolambda \
+                       -n {wildcards.sample} \
+                       -t {input.bam} \
+                       --outdir results/preprocess_01/09_peaks/ \
+                       2> {log}
+        """
+
+rule filter_peaks:
+    input:
+        peaks="results/preprocess_01/09_peaks/{sample}_peaks.narrowPeak"
+    output:
+        filtered_peaks="results/preprocess_01/10_filtered_peaks/{sample}_peaks.narrowPeak",
+        bed_file="results/preprocess_01/10_filtered_peaks/{sample}.bed"
+    params:
+        threshold=config["filtering_peaks_params"]["threshold"]
+    log:
+        log="logs/12_filtering_peaks/{sample}_filter.log"
+    conda:
+        "envs/r_env.yaml"
+    script:
+        "scripts/filter_peaks.R"
+
+rule generate_tracks:
+    input:
+        bam="results/preprocess_01/08_NF/{sample}.bam"
+    output:
+        bw="results/preprocess_01/11_tracks/{sample}.bw"
+    params:
+        bs=config["tracks_params"]["bin_size"]
+    log:
+        "logs/13_generate_tracks/{sample}_tracks.log"
+    conda:
+        "envs/deeptools.yaml"
+    threads: 7
+    shell:
+        """
+        bamCoverage -b {input.bam} \
+                    -o {output.bw} \
+                    --binSize {params.bs} \
+                    --normalizeUsing BPM \
+                    -p {threads} \
+                    2> {log}
+        """
+
+rule peaks_histogram:
+    input:
+        unfiltered_peaks=expand("results/preprocess_01/09_peaks/{sample}_peaks.narrowPeak", sample=config["samples"]),
+        filtered_peaks=expand("results/preprocess_01/10_filtered_peaks/{sample}_peaks.narrowPeak", sample=config["samples"])
+    output:
+        histogram_unfiltered="results/qc_plots_02/03_filtered_peaks/peaks_histogram_unfiltered.png",
+        histogram_filtered="results/qc_plots_02/03_filtered_peaks/peaks_histogram_filtered.png",
+        barplot="results/qc_plots_02/03_filtered_peaks/peaks_barplot.png",
+        log="results/qc_plots_02/03_filtered_peaks/peak_histogram.log"
+    conda:
+        "envs/r_env.yaml"
+    script:
+        "scripts/peak_histogram2.R"
+
+rule calculate_tss_score_individual:
+    input:
+        #bam="results/preprocess_01/07_shifted/{sample}.shifted.sorted.bam"
+        bam="results/preprocess_01/06_sorted_dedup/{sample}.sorted.bam"
+    output:
+        tss_score=temp("results/qc_plots_02/04_tssscores/{sample}_TSS_Score.txt"),
+        tss_values=temp("results/qc_plots_02/04_tssscores/{sample}_TSS_Values.txt"),
+        tss_plot="results/qc_plots_02/04_tssscores/{sample}_TSS_Plot.pdf"
+    log:
+        log="logs/14_tss_score/{sample}_tss_score.log"
+    conda:
+        "envs/r_env3.yaml"
+    threads: 2
+    script:
+        "scripts/tss_score_individual.R"
+
+rule combine_tss_scores:
+    input:
+        tss_scores=expand("results/qc_plots_02/04_tssscores/{sample}_TSS_Score.txt", sample=config["samples"]),
+        tss_values=expand("results/qc_plots_02/04_tssscores/{sample}_TSS_Values.txt", sample=config["samples"])
+    output:
+        combined_plot="results/qc_plots_02/04_tssscores/combined_TSS_Plot.pdf",
+        combined_scores="results/qc_plots_02/04_tssscores/combined_TSS_Scores.txt"
+    log:
+        log="logs/14_tss_score/combined_tss_score.log"
+    conda:
+        "envs/r_env3.yaml"
+    script:
+        "scripts/combine_tss_scores.R"
+
+rule heatmap_peaks:
+    input:
+        bw="results/preprocess_01/11_tracks/{sample}.bw",
+        peak="results/preprocess_01/09_peaks/{sample}_peaks.narrowPeak"
+    output:
+        mat="results/qc_plots_02/05_heatmaps/no_spm_{sample}.mat.gz",
+        bed="results/qc_plots_02/05_heatmaps/no_spm_{sample}.bed",
+        plot="results/qc_plots_02/05_heatmaps/no_spm_{sample}.pdf"
+    params:
+        upstream=config["heatmap_peaks_params"]["upstream"],
+        downstream=config["heatmap_peaks_params"]["downstream"]
+    threads: 4
+    log:
+        "logs/15_heatmaps/no_spm_{sample}_peaks.log"
+    conda:
+        "envs/deeptools.yaml"
+    shell:
+        """
+        computeMatrix reference-point \
+            -R {input.peak} \
+            -S {input.bw} \
+            -b {params.upstream} -a {params.downstream} --skipZeros \
+            -p {threads} \
+            -o {output.mat} \
+            --outFileSortedRegions {output.bed} \
+            > {log} 2>&1
+            
+        plotHeatmap \
+            -m {output.mat} \
+            --refPointLabel "Peak center" \
+            --plotFileFormat "pdf" \
+            --regionsLabel "Peak" \
+            -out {output.plot} \
+            > {log} 2>&1
+        """
+
+rule heatmap_tss:
+    input:
+        bw="results/preprocess_01/11_tracks/{sample}.bw"
+    output:
+        mat="results/qc_plots_02/06_heatmaps_tss/no_spm_{sample}.mat.gz",
+        bed="results/qc_plots_02/06_heatmaps_tss/no_spm_{sample}.bed",
+        plot="results/qc_plots_02/06_heatmaps_tss/no_spm_{sample}.pdf"
+    params:
+        upstream=config["heatmap_tss_params"]["upstream"],
+        downstream=config["heatmap_tss_params"]["downstream"]
+    threads: 6
+    log:
+        "logs/16_heatmaps/no_spm_{sample}_tss.log"
+    conda:
+        "envs/deeptools.yaml"
+    shell:
+        """
+        computeMatrix reference-point \
+            -R {config[ref_TSS]} \
+            -S {input.bw} \
+            -b {params.upstream} \
+            -a {params.downstream} \
+            --skipZeros \
+            --missingDataAsZero \
+            -p {threads} \
+            -o {output.mat} \
+            --outFileSortedRegions {output.bed} \
+            > {log} 2>&1
+            
+        plotHeatmap \
+            -m {output.mat} \
+            --refPointLabel "TSS" \
+            --plotFileFormat "pdf" \
+            --colorMap "Greys" \
+            -out {output.plot} \
+            >> {log} 2>&1
+        """
+
+rule multibam_and_plots:
+    input:
+        bams_sorted=expand("results/preprocess_01/07_shifted/{sample}.shifted.sorted.bam", sample=config["samples"]),
+        bams_NF=expand("results/preprocess_01/08_NF/{sample}.bam", sample=config["samples"])
+    output:
+        summary_sorted="results/qc_plots_02/07_multibam/summary.sorted.npz",
+        summary_NF="results/qc_plots_02/07_multibam/summary.NF.npz",
+        correlation_sorted="results/qc_plots_02/07_multibam/correlation.sorted.pdf",
+        correlation_NF="results/qc_plots_02/07_multibam/correlation.NF.pdf",
+        pca_sorted="results/qc_plots_02/07_multibam/pca.sorted.pdf",
+        pca_NF="results/qc_plots_02/07_multibam/pca.NF.pdf",
+        correlation_matrix_sorted="results/qc_plots_02/07_multibam/correlation_matrix.sorted.tab",
+        correlation_matrix_NF="results/qc_plots_02/07_multibam/correlation_matrix.NF.tab"
+    threads: 7
+    log:
+        sorted="logs/17_multibam/multibam_sorted.log",
+        NF="logs/17_multibam/multibam_NF.log"
+    conda:
+        "envs/deeptools.yaml"
+    shell:
+        """
+        # For sorted
+        (
+            multiBamSummary bins --bamfiles {input.bams_sorted} -o {output.summary_sorted} -p {threads} && 
+            plotCorrelation -in {output.summary_sorted} -c spearman -p heatmap -o {output.correlation_sorted} --outFileCorMatrix {output.correlation_matrix_sorted} && 
+            plotPCA -in {output.summary_sorted} -o {output.pca_sorted}
+        ) > {log.sorted} 2>&1 
+
+        # For NF
+        (
+            multiBamSummary bins --bamfiles {input.bams_NF} -o {output.summary_NF} -p {threads} && 
+            plotCorrelation -in {output.summary_NF} -c spearman -p heatmap -o {output.correlation_NF} --outFileCorMatrix {output.correlation_matrix_NF} && 
+            plotPCA -in {output.summary_NF} -o {output.pca_NF}
+        ) > {log.NF} 2>&1 
+        """
+
+rule multi_heatmap_tss:
+    input:
+        bws=lambda wildcards: expand("results/preprocess_01/11_tracks/{sample}.bw", sample=groups[wildcards.group])
+    output:
+        mat="results/qc_plots_02/06_heatmaps_tss/multi_no_spm_{group}.mat.gz",
+        plot="results/qc_plots_02/06_heatmaps_tss/multiheatmap_{group}.pdf"
+    params:
+        upstream=config["heatmap_tss_params"]["upstream"],
+        downstream=config["heatmap_tss_params"]["downstream"]
+    threads: 9
+    log:
+        "logs/16_heatmaps/multiheatmap_{group}.log"
+    conda:
+        "envs/deeptools.yaml"
+    shell:
+        """
+        computeMatrix reference-point \
+            -R {config[ref_TSS]} \
+            -S {input.bws} \
+            -b {params.upstream} \
+            -a {params.downstream} \
+            --skipZeros \
+            --missingDataAsZero \
+            -p {threads} \
+            -o {output.mat} \
+            > {log} 2>&1
+        
+        plotHeatmap \
+            -m {output.mat} \
+            --refPointLabel "TSS" \
+            --plotFileFormat "pdf" \
+            --colorMap "Greys" \
+            -out {output.plot} \
+            >> {log} 2>&1
+        """
+
+rule pbc_metrics:
+    input:
+        bam="results/preprocess_01/07_shifted/{sample}.shifted.sorted.bam"
+    output:
+        tmp_bam=temp("results/qc_plots_02/10_pbc_metrics/{sample}.tmp.bam"),
+        tmp_bed=temp("results/qc_plots_02/10_pbc_metrics/{sample}_bedpe_output.bed"),
+        pbc="results/qc_plots_02/10_pbc_metrics/{sample}.pbc.metrics"
+    log:
+        "logs/18_pbc_metrics/{sample}_pbc.log"
+    threads: 3
+    conda:
+        "envs/bedtools.yaml" 
+    shell:
+        """
+        # Sort bam by names
+        samtools sort -@ {threads} -n -O BAM -o {output.tmp_bam} {input.bam} 2>> {log}
+
+        # Convert .bam to .bed
+        bedtools bamtobed -bedpe -i {output.tmp_bam} > {output.tmp_bed} 2>> {log}
+        
+        # Calculate pbc metrics for each sample via external bash script
+        scripts/calculate_pbc.sh {output.tmp_bed} {output.pbc} 2>> {log}
+        """
+
+rule combine_pbc_metrics:
+    input:
+        pbc_metrics=expand("results/qc_plots_02/10_pbc_metrics/{sample}.pbc.metrics", sample=config["samples"])
+    output:
+        combined_metrics="results/qc_plots_02/10_pbc_metrics/combined_PBC_Metrics.txt"
+    log:
+        log="logs/18_pbc_metrics/combined_pbc_metrics.log"
+    conda:
+        "envs/r_env3.yaml"
+    script:
+        "scripts/combine_pbc_metrics.R"
+
+rule calculate_frip:
+    input:
+        bam="results/preprocess_01/08_NF/{sample}.bam",
+        peak="results/preprocess_01/09_peaks/{sample}_peaks.narrowPeak"
+    output:
+        frip="results/qc_plots_02/11_frip_scores/{sample}.frip_score.txt"
+    log:
+        "logs/19_frip_scores/{sample}_frip.log"
+    conda:
+        "envs/bedtools.yaml"
+    shell:
+        """
+        # Count the total number of reads in the bam file
+        total_reads=$(samtools view -c {input.bam})
+        echo "Total Reads: $total_reads" >> {log}
+        
+        # Count the number of reads overlapping the peak regions
+        overlapping_reads=$(bedtools sort -i {input.peak} \
+          | bedtools merge -i stdin \
+          | bedtools intersect -u -nonamecheck -a {input.bam} -b stdin -ubam \
+          | samtools view -c)
+        echo "Overlapping Reads: $overlapping_reads" >> {log}
+        
+        # Calculate FRiP score
+        frip_score=$(echo "scale=6; $overlapping_reads/$total_reads" | bc)
+        
+        # Output the FRiP score to the result file
+        echo -e "{wildcards.sample}\t$frip_score" > {output.frip}
+        """
+
+rule combine_frip_scores:
+    input:
+        frip_scores=expand("results/qc_plots_02/11_frip_scores/{sample}.frip_score.txt", sample=config["samples"])
+    output:
+        combined_scores="results/qc_plots_02/11_frip_scores/combined_frip_scores.txt"
+    shell:
+        """
+        # Create a header for the combined scores
+        echo -e "Sample\tFRiP" > {output.combined_scores}
+        
+        # Concatenate all the individual FRiP score files into the combined scores file
+        cat {input.frip_scores} >> {output.combined_scores}
+        """
+
+rule fragSizeDist_plot:
+    input:
+        bam="results/preprocess_01/07_shifted/{sample}.shifted.sorted.bam"
+    output:
+        plot="results/qc_plots_02/08_fragSizeDist/{sample}_fragSizeDist.pdf"
+    conda:
+        "envs/r_env3.yaml"
+    script:
+        "scripts/fragSizeDist_script.R"
+
+rule fragSizeDist_nff_plot:
+    input:
+        bam="results/preprocess_01/08_NF/{sample}.bam"
+    output:
+        plot="results/qc_plots_02/08_fragSizeDist/{sample}_fragSizeDist_nff.pdf"
+    conda:
+        "envs/r_env3.yaml" 
+    script:
+        "scripts/fragSizeDist_script.R"
+
+
+rule TSS_enrichment_plot:
+    input:
+        bam="results/preprocess_01/04_sorted/{sample}.bam"
+    output:
+        plot="results/qc_plots_02/09_tss_enrichment_plots/{sample}_TSS_enrichment_plot.pdf"
+    log:
+        log="logs/14_tss_enr_plot/{sample}_tss_enrichment_plot.log"
+    conda:
+        "envs/r_env3.yaml" 
+    script:
+        "scripts/tss_enrichment_plot.R"
+
+rule mapping_forSNPsplit:
+    input:
+        read1 = "results/preprocess_01/01_trimmed_data/{sample}_R1_val_1.fq.gz",
+        read2 = "results/preprocess_01/01_trimmed_data/{sample}_R2_val_2.fq.gz"
+    output:
+        bam = "results/preprocess_01/12_mapped_forSNPsplit/{sample}.bam"
+    params:
+        max_insert=config["mapping_params"]["max_insert"]
+    log:
+        "logs/21_mapping_forSNPsplit/{sample}_mapped.log"
+    conda:
+        "envs/bowtie2.yaml"
+    threads: 7
+    shell:
+        """
+        bowtie2 -X {params.max_insert} --end-to-end --very-sensitive -p {threads} \
+        -x {config[ref_genome_dir_SNPsplit]} -1 {input.read1} -2 {input.read2} 2>{log} | \
+        samtools view -bS - > {output.bam}
+        """
+
+rule filtering_forSNPsplit:
+    input:
+        bam = "results/preprocess_01/12_mapped_forSNPsplit/{sample}.bam"
+    output:
+        filtered_bam = temp("results/preprocess_01/13_filtered_forSNPsplit/{sample}.filtered.bam")
+    params:
+        quality=config["filtering_params"]["quality"]
+    log:
+        filtered="logs/22_filtering_forSNPsplit/{sample}.filtered"
+    conda:
+        "envs/filtering.yaml"
+    threads: 7
+    shell:
+        """        
+        # Bedtools intersect and further filtering
+        bedtools intersect -v -a {input.bam} -b {config[blacklist_file]} | \
+        samtools view -h --threads {threads} -q {params.quality} -F 0x4 | \
+        egrep -v chrM | \
+        samtools view -b --threads {threads} > {output.filtered_bam}
+        
+        # Generate filtered stats
+        samtools stats {output.filtered_bam} > {log.filtered}
+        """
+rule sorting_coord:
+    input:
+        bam="results/preprocess_01/13_filtered_forSNPsplit/{sample}.filtered.bam"
+    output:
+        sorted_bam="results/preprocess_01/14_sorted_coord/{sample}.bam",
+        sorted_bam_index="results/preprocess_01/14_sorted_coord/{sample}.bam.bai"
+    log:
+        "logs/23_sorting_coord/{sample}_sorted.log"
+    conda:
+        "envs/sorting.yaml"
+    threads: 4
+    shell:
+        """
+        echo "[INFO] Sorting filtered fragments" >> {log}
+
+        # Sorting
+        samtools sort -o {output.sorted_bam} -@ {threads} {input.bam} 2>> {log}
+        
+        echo "[INFO] Indexing sorted fragments" >> {log}
+
+        # Indexing
+        samtools index -@ {threads} {output.sorted_bam} 2>> {log}
+        """
+
+rule remove_duplicates_forSNPsplit:
+    input:
+        sorted_bam="results/preprocess_01/14_sorted_coord/{sample}.bam"
+    output:
+        dedup_bam=temp("results/preprocess_01/15_deduplicated_forSNPsplit/{sample}.dedup.bam"),
+        metrics="results/preprocess_01/15_deduplicated_forSNPsplit/{sample}.metrics.txt"
+    log:
+        picard_log="logs/24_remove_duplicates_forSNPsplit/{sample}.picard.log",
+    conda:
+        "envs/filtering.yaml"
+    shell:
+        """
+        echo "[INFO] Removing duplicates from BAM" >> {log.picard_log}
+        # Picard MarkDuplicates for removing duplicates
+        picard MarkDuplicates -I {input.sorted_bam} -O {output.dedup_bam} \
+        -M {output.metrics} --REMOVE_DUPLICATES true \
+        -Djava.io.tmpdir=/mnt/IM/tmp/ 2>> {log.picard_log}
+        """
+    
+rule SNPsplit:
+    input:
+        bam="results/preprocess_01/15_deduplicated_forSNPsplit/{sample}.dedup.bam"
+    output:
+        flagged_bam=temp("results/preprocess_01/16_snpsplit/{sample}.dedup.allele_flagged.bam"),
+        sorted_bam=temp("results/preprocess_01/15_deduplicated_forSNPsplit/{sample}.dedup.sortedByName.bam"),
+        unassigned_bam=temp("results/preprocess_01/16_snpsplit/{sample}.dedup.unassigned.bam"),
+        genome1_bam="results/preprocess_01/16_snpsplit/{sample}.dedup.genome1.bam",
+        genome2_bam="results/preprocess_01/16_snpsplit/{sample}.dedup.genome2.bam",
+        report="results/preprocess_01/16_snpsplit/{sample}.dedup.SNPsplit_report.txt",
+        sort_report="results/preprocess_01/16_snpsplit/{sample}.dedup.SNPsplit_sort.txt",
+        report_yaml=temp("results/preprocess_01/16_snpsplit/{sample}.dedup.SNPsplit_sort.yaml"),
+        report_yaml2=temp("results/preprocess_01/16_snpsplit/{sample}.dedup.SNPsplit_report.yaml")
+    log:
+        "logs/25_snpsplit/{sample}.log"
+    conda:
+        "envs/snpsplit.yaml"
+    threads: 1
+    shell:
+        """
+        SNPsplit --paired --snp_file {config[pwk_SNP_list]} \
+        -o results/preprocess_01/16_snpsplit \
+        {input.bam} > {log} 2>&1
+
+        cat results/preprocess_01/16_snpsplit/{wildcards.sample}.dedup.SNPsplit_sort.txt >> \
+        results/preprocess_01/16_snpsplit/{wildcards.sample}.dedup.SNPsplit_report.txt
+        """

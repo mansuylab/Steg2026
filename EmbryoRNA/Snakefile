@@ -1,0 +1,537 @@
+configfile: "config.yaml"
+
+# Expand analysis directories for rule all targets
+analysis_targets = []
+
+for analysis in config["ANALYSIS_DIRS"]:
+    # Skip if run_rseqc is False and the analysis is 12_GeneBodyCov
+    if (not config["run_rseqc"] and analysis == "12_GeneBodyCov"):
+        continue
+    analysis_targets.append(f"results/02_qc_plots/{analysis}/multiqc_report.html")
+
+# For single output files for all samples:
+output_files = [
+              "results/02_qc_plots/11_TinScore/tin_scores.png"
+              ]
+              
+# For output files per sample:
+output_files.extend(
+    expand(
+        [
+            "results/01_preprocess/01_FastQC_raw_data/{sample}_R1_fastqc.html",
+            "results/01_preprocess/01_FastQC_raw_data/{sample}_R2_fastqc.html",
+            "results/01_preprocess/03_FastQC_trimmed_data/{sample}_R1_val_1_fastqc.html",
+            "results/01_preprocess/03_FastQC_trimmed_data/{sample}_R2_val_2_fastqc.html",
+            "results/01_preprocess/04_FQScreen_trimmed_data/{sample}_R1_val_1_screen.html",
+            "results/01_preprocess/04_FQScreen_trimmed_data/{sample}_R2_val_2_screen.html",
+            "results/01_preprocess/10_salmon_post_dedup/{sample}_quant/quant.sf",
+            "results/01_preprocess/12_GeneBodyCov/{sample}.geneBodyCoverage.txt",
+            "results/01_preprocess/15_salmon_post_snpsplit/{sample}_genome1_quant/quant.sf",
+            "results/01_preprocess/15_salmon_post_snpsplit/{sample}_genome2_quant/quant.sf"
+        ],
+        sample=config["samples"]
+    )
+)
+
+# Adding analysis_targets to the list of output files (Multiqc outputs)
+output_files.extend(analysis_targets)
+
+rule all:
+    input:
+        output_files
+
+rule fqc_raw_data_R1:
+    input:
+        fastq=config["data_dir"] + "{sample}_R1.fastq.gz"
+    output:
+        html="results/01_preprocess/01_FastQC_raw_data/{sample}_R1_fastqc.html",
+        zip="results/01_preprocess/01_FastQC_raw_data/{sample}_R1_fastqc.zip"
+    log:
+        "logs/01_FastQC_rawdata/{sample}_R1.log"
+    conda:
+        "envs/fastq.yaml"
+    threads: 2
+    shell:
+        "fastqc -t {threads} -o results/01_preprocess/01_FastQC_raw_data/ {input.fastq} > {log} 2>&1"
+
+rule fqc_raw_data_R2:
+    input:
+        fastq=config["data_dir"] + "{sample}_R2.fastq.gz"
+    output:
+        html="results/01_preprocess/01_FastQC_raw_data/{sample}_R2_fastqc.html",
+        zip="results/01_preprocess/01_FastQC_raw_data/{sample}_R2_fastqc.zip"
+    log:
+        "logs/01_FastQC_rawdata/{sample}_R2.log"
+    conda:
+        "envs/fastq.yaml"
+    threads: 2
+    shell:
+        "fastqc -t {threads} -o results/01_preprocess/01_FastQC_raw_data/ {input.fastq} > {log} 2>&1"
+
+rule extract_umi:
+    input:
+        read1="/mnt/IM/data/RNA-Seq/LPD2_Embryos/Merged/{sample}_R1.fastq.gz",
+        read2="/mnt/IM/data/RNA-Seq/LPD2_Embryos/Merged/{sample}_R2.fastq.gz"
+    output:
+        read1_trimmed=temp("/mnt/IM/groupMansuy/leo/LPD2/EmbryoRNA/manual_umi_extraction/{sample}_R1.fastq.gz"),
+        read2_trimmed=temp("/mnt/IM/groupMansuy/leo/LPD2/EmbryoRNA/manual_umi_extraction/{sample}_R2.fastq.gz")
+    params:
+        tag_map="/mnt/IM/groupMansuy/kerem/auxiliary/software/CogentAP/config/recognition_tag_map_5pUMI_with_N.csv",
+        script="/mnt/IM/groupMansuy/leo/LPD2/EmbryoRNA/manual_umi_extraction/extract_smartseq_fla_umi.py",
+        outdir="/mnt/IM/groupMansuy/leo/LPD2/EmbryoRNA/manual_umi_extraction"
+    conda:
+        "envs/manual_umi_env.yaml"
+    shell:
+        """
+        python {params.script} \
+          -r1 {input.read1} \
+          -r2 {input.read2} \
+          -t {params.tag_map} \
+          -o {params.outdir}
+          
+        gzip -f {params.outdir}/{wildcards.sample}_R1.fastq
+        gzip -f {params.outdir}/{wildcards.sample}_R2.fastq
+        """
+
+rule trimming:
+    input:
+        read1=config["data_dir"] + "{sample}_R1.fastq.gz",
+        read2=config["data_dir"] + "{sample}_R2.fastq.gz"
+    output:
+        trimmed1=temp("results/01_preprocess/02_trimmed_data/{sample}_R1_val_1.fq.gz"),
+        trimmed2=temp("results/01_preprocess/02_trimmed_data/{sample}_R2_val_2.fq.gz")
+    params:
+        quality=config["trimming_params"]["quality"],
+        length=config["trimming_params"]["length"],
+        stringency=config["trimming_params"]["stringency"]
+    log:
+        "logs/02_trimming/{sample}_trimming.log"
+    conda:
+        "envs/trimg.yaml"
+    threads: 2
+    shell:
+        """
+        trim_galore --paired \
+            -q {params.quality} \
+            --length {params.length} \
+            --trim-n \
+            --stringency {params.stringency} \
+            --output_dir results/01_preprocess/02_trimmed_data/ \
+            {input.read1} {input.read2} \
+            > {log} 2>&1
+        """
+
+rule fqc_trimmed_data_R1:
+    input:
+        trimmed_fq="results/01_preprocess/02_trimmed_data/{sample}_R1_val_1.fq.gz"
+    output:
+        html="results/01_preprocess/03_FastQC_trimmed_data/{sample}_R1_val_1_fastqc.html",
+        zip="results/01_preprocess/03_FastQC_trimmed_data/{sample}_R1_val_1_fastqc.zip"
+    log:
+        "logs/03_FastQC_trimmed/{sample}_R1_trimmed.log"
+    conda:
+        "envs/fastq.yaml"
+    threads: 2
+    shell:
+        "fastqc -t {threads} -o results/01_preprocess/03_FastQC_trimmed_data/ {input.trimmed_fq} > {log} 2>&1"
+
+rule fqc_trimmed_data_R2:
+    input:
+        trimmed_fq="results/01_preprocess/02_trimmed_data/{sample}_R2_val_2.fq.gz"
+    output:
+        html="results/01_preprocess/03_FastQC_trimmed_data/{sample}_R2_val_2_fastqc.html",
+        zip="results/01_preprocess/03_FastQC_trimmed_data/{sample}_R2_val_2_fastqc.zip"
+    log:
+        "logs/03_FastQC_trimmed/{sample}_R2_trimmed.log"
+    conda:
+        "envs/fastq.yaml"
+    threads: 2
+    shell:
+        "fastqc -t {threads} -o results/01_preprocess/03_FastQC_trimmed_data/ {input.trimmed_fq} > {log} 2>&1"
+
+rule fqscreen_trimmed_data_R1:
+    input:
+        trimmed_fq="results/01_preprocess/02_trimmed_data/{sample}_R1_val_1.fq.gz"
+    output:
+        trimmed_fqscreen_html="results/01_preprocess/04_FQScreen_trimmed_data/{sample}_R1_val_1_screen.html",
+        trimmed_fqscreen_txt="results/01_preprocess/04_FQScreen_trimmed_data/{sample}_R1_val_1_screen.txt"
+    log:
+        trimmed="logs/04_FQScreen_trimmed_data/{sample}_R1_trimmed.log",
+    conda:
+        "envs/fqscreen.yaml"
+    threads: 2
+    shell:
+        """
+        fastq_screen --aligner bowtie2 --threads {threads} \
+        --conf {config[fastq_screen_conf]} \
+        --outdir results/01_preprocess/04_FQScreen_trimmed_data {input.trimmed_fq} > {log.trimmed} 2>&1
+        """
+
+rule fqscreen_trimmed_data_R2:
+    input:
+        trimmed_fq="results/01_preprocess/02_trimmed_data/{sample}_R2_val_2.fq.gz"
+    output:
+        trimmed_fqscreen_html="results/01_preprocess/04_FQScreen_trimmed_data/{sample}_R2_val_2_screen.html",
+        trimmed_fqscreen_txt="results/01_preprocess/04_FQScreen_trimmed_data/{sample}_R2_val_2_screen.txt"
+    log:
+        trimmed="logs/04_FQScreen_trimmed_data/{sample}_R2_trimmed.log",
+    conda:
+        "envs/fqscreen.yaml"
+    threads: 2
+    shell:
+        """
+        fastq_screen --aligner bowtie2 --threads {threads} \
+        --conf {config[fastq_screen_conf]} \
+        --outdir results/01_preprocess/04_FQScreen_trimmed_data {input.trimmed_fq} > {log.trimmed} 2>&1
+        """
+rule star_aligner:
+    input:
+        R1="results/01_preprocess/02_trimmed_data/{sample}_R1_val_1.fq.gz",
+        R2="results/01_preprocess/02_trimmed_data/{sample}_R2_val_2.fq.gz"
+    output:
+        bam="results/01_preprocess/06_star_aligned/{sample}_trimmed_Aligned.sortedByCoord.out.bam",
+        idx="results/01_preprocess/06_star_aligned/{sample}_trimmed_Aligned.sortedByCoord.out.bam.bai",
+    log:
+        star="logs/06_star_aligned/{sample}_staralign.log",
+        index="logs/06_star_aligned/{sample}_index.log",
+    conda:
+        "envs/star.yaml"
+    threads: 5
+    shell:
+        """
+        STAR \
+            --runThreadN {threads} \
+            --genomeDir {config[star_genome_dir]} \
+            --sjdbGTFfile {config[GTF_file]} \
+            --readFilesCommand zcat \
+            --readFilesIn {input.R1} {input.R2} \
+         --outFileNamePrefix results/01_preprocess/06_star_aligned/{wildcards.sample}_trimmed_ \
+         --outSAMtype BAM SortedByCoordinate > {log.star} 2>&1
+
+        # Generate index for the output BAM file
+        samtools index {output.bam}
+        """
+
+rule add_umi_tag_from_qname:
+    input:
+        bam="results/01_preprocess/06_star_aligned/{sample}_trimmed_Aligned.sortedByCoord.out.bam"
+    output:
+        bam="results/01_preprocess/08_bam_with_umi_tag/{sample}_with_UM_tag.bam",
+        bai="results/01_preprocess/08_bam_with_umi_tag/{sample}_with_UM_tag.bam.bai"
+    conda:
+        "envs/umi.yaml"
+    shell:
+        """
+        mkdir -p $(dirname {output.bam})
+
+        samtools view -h {input.bam} \
+        | perl -ne '
+            if (/^@/) {{ print; next }}
+            chomp;
+            my @f = split("\\t");
+            if ($f[0] =~ /_UM:([ACGTN]{{8}})$/) {{
+                push @f, "UM:Z:$1";
+            }}
+            print join("\\t", @f) . "\\n";
+        ' \
+        | samtools view -b -o {output.bam}
+        
+        # Index the new BAM
+        samtools index {output.bam}
+        """
+
+rule umi_deduplication:
+    input:
+        bam="results/01_preprocess/08_bam_with_umi_tag/{sample}_with_UM_tag.bam"
+    output:
+        dedup_bam="results/01_preprocess/09_umi_deduplicated/{sample}_with_UM_tag_dedup.bam",
+        dedup_bam_index="results/01_preprocess/09_umi_deduplicated/{sample}_with_UM_tag_dedup.bam.bai",
+        copied_log="results/01_preprocess/09_umi_deduplicated/{sample}_deduplication_log.txt"
+    log:
+        "logs/09_umi_deduplicated/{sample}_deduplication_log.txt"
+    conda:
+        "envs/umi.yaml"
+    shell:
+        """
+        # Deduplicate BAM file using umi_tools dedup
+        umi_tools dedup \
+        --stdin={input.bam} \
+        --log={log} \
+        --stdout={output.dedup_bam} \
+        --extract-umi-method=tag \
+        --umi-tag=UM \
+        --paired \
+        --buffer-whole-contig
+
+        # Generate index for the deduplicated BAM file
+        samtools index {output.dedup_bam}
+
+        # Copy the log file to the desired output directory
+        cp {log} {output.copied_log}
+        """
+
+rule salmon_post_dedup:
+    input:
+        bam="results/01_preprocess/09_umi_deduplicated/{sample}_with_UM_tag_dedup.bam"
+    output:
+        quant="results/01_preprocess/10_salmon_post_dedup/{sample}_quant/quant.sf",
+        tmp_R1=temp("results/tmp/{sample}_R1.fastq"),
+        tmp_R2=temp("results/tmp/{sample}_R2.fastq")
+    log:
+        salmon="logs/10_salmon_post_dedup/{sample}_salmon.log",
+        samtools_fastq="logs/10_salmon_post_dedup/{sample}_samtools_fastq.log"
+    conda:
+        "envs/salmonsort.yaml"
+    threads: 4
+    shell:
+        """
+        # Ensure the temporary directory exists
+        mkdir -p results/tmp/
+
+        # Convert BAM to FASTQ
+        samtools fastq \
+            -@ {threads} \
+            -1 {output.tmp_R1} \
+            -2 {output.tmp_R2} -n\
+            {input.bam} > {log.samtools_fastq} 2>&1
+        
+        # Run Salmon quant
+        salmon quant -i {config[salmon_index_dir]} -l A \
+        -1 {output.tmp_R1} -2 {output.tmp_R2} \
+        -p {threads} --validateMappings \
+        --output results/01_preprocess/10_salmon_post_dedup/{wildcards.sample}_quant \
+        > {log.salmon} 2>&1
+        """
+        
+rule calculate_tin:
+    input:
+        bam="results/01_preprocess/06_star_aligned/{sample}_trimmed_Aligned.sortedByCoord.out.bam"
+    output:
+        tsv="results/01_preprocess/11_TinScore/{sample}.tsv"
+    conda:
+        "envs/rseqc.yaml"
+    threads: 7
+    shell:
+        """
+        if [ "{config[run_rseqc]}" = "True" ]; then
+            calculate-tin.py -r {config[bed_file]} -i {input.bam} --names={wildcards.sample} -p {threads} 1> {output.tsv}
+        else
+            echo "RSeQC analysis is turned off in the config."
+            exit 1
+        fi
+        """
+
+rule merge_tin:
+    input:
+        expand("results/01_preprocess/11_TinScore/{sample}.tsv", sample=config["samples"])
+    output:
+        "results/01_preprocess/11_TinScore/merged.tsv"
+    conda:
+        "envs/rseqc.yaml"
+    shell:
+        """
+        if [ "{config[run_rseqc]}" = "True" ]; then
+            merge-tin.py --input-files {input} --output-file {output}
+        else
+            echo "RSeQC analysis is turned off in the config."
+            exit 1
+        fi
+        """
+
+rule plot_tin_scores:
+    input:
+        "results/01_preprocess/11_TinScore/merged.tsv"
+    output:
+        "results/02_qc_plots/11_TinScore/tin_scores.png"
+    conda:
+        "envs/r_ggplot2.yaml"
+    params:
+        run = config["run_rseqc"]
+    shell:
+        """
+        if [ "{params.run}" = "True" ]; then
+            Rscript scripts/plot_tin_scores.R {input} {output}
+        else
+            echo "RSeQC analysis is turned off in the config."
+            touch {output}  # Create a dummy file
+        fi
+        """
+
+rule calculate_genebodycoverage:
+    input:
+        bam="results/01_preprocess/06_star_aligned/{sample}_trimmed_Aligned.sortedByCoord.out.bam",
+        bam_index="results/01_preprocess/06_star_aligned/{sample}_trimmed_Aligned.sortedByCoord.out.bam.bai"
+    output:
+        pdf=temp("results/01_preprocess/12_GeneBodyCov/{sample}.geneBodyCoverage.curves.pdf"),
+        r=temp("results/01_preprocess/12_GeneBodyCov/{sample}.geneBodyCoverage.r"),
+        txt="results/01_preprocess/12_GeneBodyCov/{sample}.geneBodyCoverage.txt"
+    conda:
+        "envs/rseqc.yaml"
+    shell:
+        """
+        # Update the access and modification times of the index files
+        touch {input.bam_index}
+
+        if [ "{config[run_rseqc]}" = "True" ]; then
+            geneBody_coverage.py -r {config[bed_file]} -i {input.bam} -o results/01_preprocess/12_GeneBodyCov/{wildcards.sample}
+        else
+            echo "RSeQC analysis is turned off in the config."
+            exit 1
+        fi
+        """
+
+rule mark_genebodycoverage_completed:
+    input:
+        txts=expand("results/01_preprocess/12_GeneBodyCov/{sample}.geneBodyCoverage.txt", sample=config["samples"])
+    output:
+        completion_marker="results/01_preprocess/12_GeneBodyCov/genebodycoverage_completed.txt"
+    shell:
+        """
+        touch {output.completion_marker}
+        """
+
+
+rule star_aligner_pwk_v3:
+    input:
+        R1="results/01_preprocess/02_trimmed_data/{sample}_R1_val_1.fq.gz",
+        R2="results/01_preprocess/02_trimmed_data/{sample}_R2_val_2.fq.gz"
+    output:
+        bam="results/01_preprocess/13_star_aligned_pwk_v3/{sample}_trimmed_Aligned.out.bam"
+    log:
+        star="logs/13_star_aligned_pwk_v3/{sample}_staralign.log"
+    conda:
+        "envs/star.yaml"
+    threads: 4
+    shell:
+        """
+        STAR \
+            --runThreadN {threads} \
+            --genomeDir {config[pwk_star_genome_dir_v3]} \
+            --sjdbGTFfile {config[GTF_file_v3]} \
+            --readFilesCommand zcat \
+            --readFilesIn {input.R1} {input.R2} \
+         --outFileNamePrefix results/01_preprocess/13_star_aligned_pwk_v3/{wildcards.sample}_trimmed_ \
+         --outSAMtype BAM Unsorted \
+         --alignEndsType EndToEnd \
+         --outSAMattributes NH HI NM MD \
+         > {log.star} 2>&1
+        """
+
+rule SNPsplit:
+    input:
+        bam="results/01_preprocess/13_star_aligned_pwk_v3/{sample}_trimmed_Aligned.out.bam"
+    output:
+        flagged_bam=temp("results/01_preprocess/14_snpsplit/{sample}_trimmed_Aligned.out.allele_flagged.bam"),
+        sorted_bam=temp("results/01_preprocess/13_star_aligned_pwk_v3/{sample}_trimmed_Aligned.out.sortedByName.bam"),
+        unassigned_bam=temp("results/01_preprocess/14_snpsplit/{sample}_trimmed_Aligned.out.unassigned.bam"),
+        genome1_bam="results/01_preprocess/14_snpsplit/{sample}_trimmed_Aligned.out.genome1.bam",
+        genome2_bam="results/01_preprocess/14_snpsplit/{sample}_trimmed_Aligned.out.genome2.bam",
+        report="results/01_preprocess/14_snpsplit/{sample}_trimmed_Aligned.out.SNPsplit_report.txt",
+        sort_report="results/01_preprocess/14_snpsplit/{sample}_trimmed_Aligned.out.SNPsplit_sort.txt",
+        report_yaml="results/01_preprocess/14_snpsplit/{sample}_trimmed_Aligned.out.SNPsplit_sort.yaml"
+    log:
+        "logs/14_snpsplit/{sample}.log"
+    conda:
+        "envs/snpsplit.yaml"
+    threads: 2
+    shell:
+        """
+        SNPsplit --paired --snp_file {config[pwk_SNP_list]} \
+        -o results/01_preprocess/14_snpsplit \
+        {input.bam} > {log} 2>&1
+
+        cat results/01_preprocess/14_snpsplit/{wildcards.sample}_trimmed_Aligned.out.SNPsplit_sort.txt >> \
+        results/01_preprocess/14_snpsplit/{wildcards.sample}_trimmed_Aligned.out.SNPsplit_report.txt
+        """
+
+rule salmon_post_snpsplit_genome1:
+    input:
+        bam="results/01_preprocess/14_snpsplit/{sample}_trimmed_Aligned.out.genome1.bam"
+    output:
+        quant="results/01_preprocess/15_salmon_post_snpsplit/{sample}_genome1_quant/quant.sf",
+        tmp_R1=temp("results/tmp/{sample}_genome1_R1.fastq"),
+        tmp_R2=temp("results/tmp/{sample}_genome1_R2.fastq"),
+    log:
+        salmon="logs/15_salmon_post_snpsplit/{sample}_genome1_salmon.log",
+        samtools_fastq="logs/15_salmon_post_snpsplit/{sample}_genome1_samtools_fastq.log"
+    conda:
+        "envs/salmonsort.yaml"
+    threads: 4
+    shell:
+        """
+        # Ensure the temporary directory exists
+        mkdir -p results/tmp/
+
+        # Convert BAM to FASTQ
+        samtools fastq \
+            -@ {threads} \
+            -1 {output.tmp_R1} \
+            -2 {output.tmp_R2} -n\
+            {input.bam} > {log.samtools_fastq} 2>&1
+        
+        # Run Salmon quant
+        salmon quant -i {config[salmon_index_dir]} -l A \
+        -1 {output.tmp_R1} -2 {output.tmp_R2} \
+        -p {threads} --validateMappings \
+        --output results/01_preprocess/15_salmon_post_snpsplit/{wildcards.sample}_genome1_quant \
+        > {log.salmon} 2>&1
+        """
+
+rule salmon_post_snpsplit_genome2:
+    input:
+        bam="results/01_preprocess/14_snpsplit/{sample}_trimmed_Aligned.out.genome2.bam"
+    output:
+        quant="results/01_preprocess/15_salmon_post_snpsplit/{sample}_genome2_quant/quant.sf",
+        tmp_R1=temp("results/tmp/{sample}_genome2_R1.fastq"),
+        tmp_R2=temp("results/tmp/{sample}_genome2_R2.fastq"),
+    log:
+        salmon="logs/15_salmon_post_snpsplit/{sample}_genome2_salmon.log",
+        samtools_fastq="logs/15_salmon_post_snpsplit/{sample}_genome2_samtools_fastq.log"
+    conda:
+        "envs/salmonsort.yaml"
+    threads: 4
+    shell:
+        """
+        # Ensure the temporary directory exists
+        mkdir -p results/tmp/
+
+        # Convert BAM to FASTQ
+        samtools fastq \
+            -@ {threads} \
+            -1 {output.tmp_R1} \
+            -2 {output.tmp_R2} -n\
+            {input.bam} > {log.samtools_fastq} 2>&1
+        
+        # Run Salmon quant
+        salmon quant -i {config[salmon_index_dir]} -l A \
+        -1 {output.tmp_R1} -2 {output.tmp_R2} \
+        -p {threads} --validateMappings \
+        --output results/01_preprocess/15_salmon_post_snpsplit/{wildcards.sample}_genome2_quant \
+        > {log.salmon} 2>&1
+        """
+
+
+def multiqc_inputs(wildcards):
+    inputs = []
+    
+    if config["run_rseqc"]:
+        inputs.extend([
+        ])
+    return inputs
+
+rule multiqc:
+    input:
+        multiqc_inputs
+    output:
+        html="results/02_qc_plots/{analysis}/multiqc_report.html"
+    params:
+        outdir="results/02_qc_plots/{analysis}",
+        configfile="envs/multiqc_config.yaml"
+    conda:
+        "envs/multiqc.yaml"
+    shell:
+        """
+        multiqc -c {params.configfile} -o {params.outdir} results/01_preprocess/{wildcards.analysis} -p -s -d --interactive
+        """
+
+        

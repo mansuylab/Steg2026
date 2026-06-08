@@ -1,0 +1,40 @@
+data_dir: /mnt/IM/data/short-RNA-Seq/LPD2_sperm/
+run_rseqc: FALSE
+samples:
+  - B6-F0-04
+  - B6-F0-13
+  - B6-F0-17
+  - B6-F0-22
+  - B6-F0-30
+  - B6-F0-32
+  - B6-F0-37
+  - B6-F0-43
+  - B6-F0-45
+  - B6-F0-46
+  - B6-F0-51
+  - B6-F0-52
+  - B6-F0-56
+  - B6-F0-60
+  - B6-F0-65
+  - B6-F0-72
+  - B6-F0-75
+trimming_params:
+    quality: 20
+    min_length: 18
+    max_length: 40
+mirgene_ref: "/mnt/IM/groupMansuy/kerem/auxiliary/SmallRNA/miRNAs/miRGeneDb/mmu-all.bed"
+mirbase_ref: "/mnt/IM/groupMansuy/kerem/auxiliary/SmallRNA/miRNAs/miRBase/mmu.sorted.bed"
+mirbase_pt_ref: "/mnt/IM/groupMansuy/kerem/auxiliary/SmallRNA/miRNAs/miRBase/mmu_primary_transcript.sorted.bed"
+mirbase_3p5p_ref: "/mnt/IM/groupMansuy/kerem/auxiliary/SmallRNA/miRNAs/miRBase/mmu_3p5p.sorted.bed"
+trna_ref: "/mnt/IM/groupMansuy/kerem/auxiliary/SmallRNA/tRNAs/mm39-tRNAs.GRCm39.bed"
+pirna_ref: "/mnt/IM/groupMansuy/kerem/auxiliary/SmallRNA/piRNAs/mmu.align.canonical.chr.bed"
+genome_dir: "/mnt/IM/groupMansuy/kerem/auxiliary/genomes/mm10_bowtie1/mm10"
+genome_dir_GRCm39: "/mnt/IM/groupMansuy/kerem/auxiliary/genomes/GRCm39_bowtie1/GRCm39"
+fastq_screen_conf: "/mnt/IM/groupMansuy/kerem/auxiliary/conf/fastq_screen_mmu_hsa.conf"
+ANALYSIS_DIRS:
+  - 01_FastQC_raw_data
+  - 02_trimmed_data
+  - 03_FastQC_trimmed_data
+  - 04_FQScreen_trimmed_data
+  - 05_bowtie_mapped
+  - 09_bowtie_mapped_GRCm39

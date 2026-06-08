@@ -1,0 +1,525 @@
+configfile: "config.yaml"
+
+
+# Expand analysis directories for rule all targets
+analysis_targets = []
+
+for analysis in config["ANALYSIS_DIRS"]:
+    # Skip if run_rseqc is False and the analysis is 15_GeneBodyCov
+    if (not config["run_rseqc"] and analysis == "15_GeneBodyCov"):
+      continue
+    analysis_targets.append(f"results/02_qc_plots/{analysis}/multiqc_report.html")
+
+# For single output files for all samples:
+output_files = [
+  "results/02_qc_plots/14_TinScore/tin_scores.png"
+  ]
+
+# For output files per sample:
+output_files.extend(
+    expand(
+        [
+        "results/01_preprocess/01_FastQC_raw_data/{sample}_1_fastqc.html",
+        "results/01_preprocess/01_FastQC_raw_data/{sample}_2_fastqc.html",
+        "results/01_preprocess/07_FastQC_sortmernaed_data/{sample}_other_R1_fastqc.html",
+        "results/01_preprocess/07_FastQC_sortmernaed_data/{sample}_other_R2_fastqc.html",
+        "results/01_preprocess/08_FQScreen_sortmernaed_data/{sample}_other_R1_screen.html",
+        "results/01_preprocess/08_FQScreen_sortmernaed_data/{sample}_other_R2_screen.html",
+        "results/01_preprocess/12_salmon_post_dedup/{sample}_quant/quant.sf",
+        "results/01_preprocess/15_GeneBodyCov/{sample}.geneBodyCoverage.txt"
+        ],
+        sample=config["samples"]
+    )
+)
+
+# Adding analysis_targets to the list of input files (Multiqc outputs)
+output_files.extend(analysis_targets)
+
+rule all:
+    input:
+        output_files
+
+rule fqc_raw_data_R1:
+    input:
+        fastq=config["data_dir"] + "{sample}_1.fq.gz"
+    output:
+        html="results/01_preprocess/01_FastQC_raw_data/{sample}_1_fastqc.html",
+        zip="results/01_preprocess/01_FastQC_raw_data/{sample}_1_fastqc.zip"
+    log:
+        "logs/01_FastQC_rawdata/{sample}_R1.log"
+    conda:
+        "envs/fastq.yaml"
+    threads: 2
+    shell:
+        "fastqc -t {threads} -o results/01_preprocess/01_FastQC_raw_data/ {input.fastq} > {log} 2>&1"
+
+rule fqc_raw_data_R2:
+    input:
+        fastq=config["data_dir"] + "{sample}_2.fq.gz"
+    output:
+        html="results/01_preprocess/01_FastQC_raw_data/{sample}_2_fastqc.html",
+        zip="results/01_preprocess/01_FastQC_raw_data/{sample}_2_fastqc.zip"
+    log:
+        "logs/01_FastQC_rawdata/{sample}_R2.log"
+    conda:
+        "envs/fastq.yaml"
+    threads: 2
+    shell:
+        "fastqc -t {threads} -o results/01_preprocess/01_FastQC_raw_data/ {input.fastq} > {log} 2>&1"
+
+rule umi_extraction:
+    input:
+        r1=config["data_dir"] + "{sample}_1.fq.gz",
+        r2=config["data_dir"] + "{sample}_2.fq.gz"
+    output:
+        out_r1="results/01_preprocess/02_UMI_extraction/{sample}_R1_processed.fastq.gz",
+        out_r2="results/01_preprocess/02_UMI_extraction/{sample}_R2_processed.fastq.gz"
+    log:
+        stdout="logs/02_UMI_extraction/{sample}_extraction_log.txt",
+        stderr="logs/02_UMI_extraction/{sample}_extraction_stderr.txt"
+    conda:
+        "envs/umi.yaml"
+    shell:
+        """
+        umi_tools extract -I {input.r2} -S {output.out_r2} \
+            --read2-in {input.r1} --read2-out {output.out_r1} \
+            --bc-pattern NNNNNNNNCCCCCC \
+            --extract-method=string \
+            --log {log.stdout} \
+            > {log.stdout} 2> {log.stderr}
+        """
+
+rule trimming:
+    input:
+        read1="results/01_preprocess/02_UMI_extraction/{sample}_R1_processed.fastq.gz",
+        read2="results/01_preprocess/02_UMI_extraction/{sample}_R2_processed.fastq.gz"
+    output:
+        trimmed1="results/01_preprocess/03_trimmed_data/{sample}_R1_processed_val_1.fq.gz",
+        trimmed2="results/01_preprocess/03_trimmed_data/{sample}_R2_processed_val_2.fq.gz"
+    params:
+        quality=config["trimming_params"]["quality"],
+        length=config["trimming_params"]["length"],
+        stringency=config["trimming_params"]["stringency"]
+    log:
+        "logs/03_trimming/{sample}_trimming.log"
+    conda:
+        "envs/trimg.yaml"
+    threads: 2
+    shell:
+        """
+        trim_galore --paired \
+            -q {params.quality} \
+            --length {params.length} \
+            --trim-n \
+            --stringency {params.stringency} \
+            --output_dir results/01_preprocess/03_trimmed_data/ \
+            {input.read1} {input.read2} \
+            > {log} 2>&1
+        """
+
+rule fqc_trimmed_data_R1:
+    input:
+        trimmed_fq="results/01_preprocess/03_trimmed_data/{sample}_R1_processed_val_1.fq.gz"
+    output:
+        html="results/01_preprocess/04_FastQC_trimmed_data/{sample}_R1_processed_val_1_fastqc.html",
+        zip="results/01_preprocess/04_FastQC_trimmed_data/{sample}_R1_processed_val_1_fastqc.zip"
+    log:
+        "logs/04_FastQC_trimmed/{sample}_R1_trimmed.log"
+    conda:
+        "envs/fastq.yaml"
+    threads: 2
+    shell:
+        "fastqc -t {threads} -o results/01_preprocess/04_FastQC_trimmed_data/ {input.trimmed_fq} > {log} 2>&1"
+
+rule fqc_trimmed_data_R2:
+    input:
+        trimmed_fq="results/01_preprocess/03_trimmed_data/{sample}_R2_processed_val_2.fq.gz"
+    output:
+        html="results/01_preprocess/04_FastQC_trimmed_data/{sample}_R2_processed_val_2_fastqc.html",
+        zip="results/01_preprocess/04_FastQC_trimmed_data/{sample}_R2_processed_val_2_fastqc.zip"
+    log:
+        "logs/04_FastQC_trimmed/{sample}_R2_trimmed.log"
+    conda:
+        "envs/fastq.yaml"
+    threads: 2
+    shell:
+        "fastqc -t {threads} -o results/01_preprocess/04_FastQC_trimmed_data/ {input.trimmed_fq} > {log} 2>&1"
+
+rule fqscreen_trimmed_data_R1:
+    input:
+        trimmed_fq="results/01_preprocess/03_trimmed_data/{sample}_R1_processed_val_1.fq.gz"
+    output:
+        trimmed_fqscreen_html="results/01_preprocess/05_FQScreen_trimmed_data/{sample}_R1_processed_val_1_screen.html",
+        trimmed_fqscreen_txt="results/01_preprocess/05_FQScreen_trimmed_data/{sample}_R1_processed_val_1_screen.txt"
+    log:
+        trimmed="logs/05_FQScreen_trimmed_data/{sample}_R1_trimmed.log",
+    conda:
+        "envs/fqscreen.yaml"
+    threads: 2
+    shell:
+        """
+        fastq_screen --aligner bowtie2 --threads {threads} \
+        --conf {config[fastq_screen_conf]} \
+        --outdir results/01_preprocess/05_FQScreen_trimmed_data {input.trimmed_fq} > {log.trimmed} 2>&1
+        """
+
+rule fqscreen_trimmed_data_R2:
+    input:
+        trimmed_fq="results/01_preprocess/03_trimmed_data/{sample}_R2_processed_val_2.fq.gz"
+    output:
+        trimmed_fqscreen_html="results/01_preprocess/05_FQScreen_trimmed_data/{sample}_R2_processed_val_2_screen.html",
+        trimmed_fqscreen_txt="results/01_preprocess/05_FQScreen_trimmed_data/{sample}_R2_processed_val_2_screen.txt"
+    log:
+        trimmed="logs/05_FQScreen_trimmed_data/{sample}_R2_trimmed.log",
+    conda:
+        "envs/fqscreen.yaml"
+    threads: 2
+    shell:
+        """
+        fastq_screen --aligner bowtie2 --threads {threads} \
+        --conf {config[fastq_screen_conf]} \
+        --outdir results/01_preprocess/05_FQScreen_trimmed_data {input.trimmed_fq} > {log.trimmed} 2>&1
+        """
+
+rule unzip_trimmed_r1:
+    input:
+        trimmed_fq="results/01_preprocess/03_trimmed_data/{sample}_R1_processed_val_1.fq.gz"
+    output:
+        fastq="results/01_preprocess/03_trimmed_data/unzipped/{sample}_R1_processed_val_1.fq"
+    shell:
+        "gunzip -c {input.trimmed_fq} > {output.fastq}"
+
+rule unzip_trimmed_r2:
+    input:
+        trimmed_fq="results/01_preprocess/03_trimmed_data/{sample}_R2_processed_val_2.fq.gz"
+    output:
+        fastq="results/01_preprocess/03_trimmed_data/unzipped/{sample}_R2_processed_val_2.fq"
+    shell:
+        "gunzip -c {input.trimmed_fq} > {output.fastq}"
+
+rule sort_rRNAs_out:
+    input:
+        trimmed_fq1="results/01_preprocess/03_trimmed_data/unzipped/{sample}_R1_processed_val_1.fq",
+        trimmed_fq2="results/01_preprocess/03_trimmed_data/unzipped/{sample}_R2_processed_val_2.fq",
+        refs=expand("{ref}", ref=config["sortmerna_ref"])
+    output:
+        other1="results/01_preprocess/06_sortmernaed_data/{sample}_other_fwd.fq",
+        other2="results/01_preprocess/06_sortmernaed_data/{sample}_other_rev.fq"
+    log:
+        "logs/06_sortmerna/{sample}_sortmernaed.log"
+    conda:
+        "envs/sortrna.yaml"
+    threads: 4
+    shell:
+        """
+        # Create directories if they don't exist
+        working_dir="results/01_preprocess/06_sortmernaed_data/tempdir{wildcards.sample}"
+        mkdir -p $working_dir
+        
+        # Set up the sortmerna command
+        ref_str=""
+        for ref in {input.refs}; do
+            ref_str="$ref_str --ref $ref"
+        done
+        
+        # Run sortmerna
+        sortmerna $ref_str \
+        --workdir $working_dir \
+        --reads {input.trimmed_fq1} \
+        --reads {input.trimmed_fq2} \
+        --threads {threads} \
+        --other results/01_preprocess/06_sortmernaed_data/{wildcards.sample}_other \
+        --paired_in --out2 --fastx > {log} 2>&1
+        
+        # Optionally clean up the temporary directories if needed
+        rm -r $working_dir
+        """
+
+rule zip_sortmernaed_r1:
+    input:
+        other_fq="results/01_preprocess/06_sortmernaed_data/{sample}_other_fwd.fq"
+    output:
+        fqgz="results/01_preprocess/06_sortmernaed_data/zipped/{sample}_other_R1.fq.gz"
+    shell:
+        "gzip -c {input.other_fq} > {output.fqgz}"  
+
+rule zip_sortmernaed_r2:
+    input:
+        other_fq="results/01_preprocess/06_sortmernaed_data/{sample}_other_rev.fq"
+    output:
+        fqgz="results/01_preprocess/06_sortmernaed_data/zipped/{sample}_other_R2.fq.gz"
+    shell:
+        "gzip -c {input.other_fq} > {output.fqgz}"  
+
+rule fqc_sortmernaed_data_R1:
+    input:
+        sortmernaed_fq="results/01_preprocess/06_sortmernaed_data/zipped/{sample}_other_R1.fq.gz"
+    output:
+        html="results/01_preprocess/07_FastQC_sortmernaed_data/{sample}_other_R1_fastqc.html",
+        zip="results/01_preprocess/07_FastQC_sortmernaed_data/{sample}_other_R1_fastqc.zip"
+    log:
+        "logs/07_FastQC_sortmernaed/{sample}_R1_sortmernaed.log"
+    conda:
+        "envs/fastq.yaml"
+    threads: 2
+    shell:
+        "fastqc -t {threads} -o results/01_preprocess/07_FastQC_sortmernaed_data/ {input.sortmernaed_fq} > {log} 2>&1"
+
+rule fqc_sortmernaed_data_R2:
+    input:
+        sortmernaed_fq="results/01_preprocess/06_sortmernaed_data/zipped/{sample}_other_R2.fq.gz"
+    output:
+        html="results/01_preprocess/07_FastQC_sortmernaed_data/{sample}_other_R2_fastqc.html",
+        zip="results/01_preprocess/07_FastQC_sortmernaed_data/{sample}_other_R2_fastqc.zip"
+    log:
+        "logs/07_FastQC_sortmernaed/{sample}_R2_sortmernaed.log"
+    conda:
+        "envs/fastq.yaml"
+    threads: 2
+    shell:
+        "fastqc -t {threads} -o results/01_preprocess/07_FastQC_sortmernaed_data/ {input.sortmernaed_fq} > {log} 2>&1"
+
+rule fqscreen_sortmernaed_data_R1:
+    input:
+        sortmernaed_fq="results/01_preprocess/06_sortmernaed_data/zipped/{sample}_other_R1.fq.gz"
+    output:
+        fqscreen_html="results/01_preprocess/08_FQScreen_sortmernaed_data/{sample}_other_R1_screen.html",
+        fqscreen_txt="results/01_preprocess/08_FQScreen_sortmernaed_data/{sample}_other_R1_screen.txt"
+    log:
+        "logs/08_FQScreen_sortmernaed_data/{sample}_R1_sortmernaed.log"
+    conda:
+        "envs/fqscreen.yaml"
+    threads: 2
+    shell:
+        """
+        fastq_screen --aligner bowtie2 --threads {threads} \
+        --conf {config[fastq_screen_conf]} \
+        --outdir results/01_preprocess/08_FQScreen_sortmernaed_data {input.sortmernaed_fq} > {log} 2>&1
+        """
+
+rule fqscreen_sortmernaed_data_R2:
+    input:
+        sortmernaed_fq="results/01_preprocess/06_sortmernaed_data/zipped/{sample}_other_R2.fq.gz"
+    output:
+        fqscreen_html="results/01_preprocess/08_FQScreen_sortmernaed_data/{sample}_other_R2_screen.html",
+        fqscreen_txt="results/01_preprocess/08_FQScreen_sortmernaed_data/{sample}_other_R2_screen.txt"
+    log:
+        "logs/08_FQScreen_sortmernaed_data/{sample}_R2_sortmernaed.log",
+    conda:
+        "envs/fqscreen.yaml"
+    threads: 2
+    shell:
+        """
+        fastq_screen --aligner bowtie2 --threads {threads} \
+        --conf {config[fastq_screen_conf]} \
+        --outdir results/01_preprocess/08_FQScreen_sortmernaed_data {input.sortmernaed_fq} > {log} 2>&1
+        """
+
+rule star_aligner:
+    input:
+        R1="results/01_preprocess/06_sortmernaed_data/zipped/{sample}_other_R1.fq.gz",
+        R2="results/01_preprocess/06_sortmernaed_data/zipped/{sample}_other_R2.fq.gz"
+    output:
+        bam="results/01_preprocess/10_star_aligned/{sample}_trimmed_Aligned.sortedByCoord.out.bam",
+        idx="results/01_preprocess/10_star_aligned/{sample}_trimmed_Aligned.sortedByCoord.out.bam.bai",
+        idxstat="results/01_preprocess/10_star_aligned/{sample}_trimmed_Aligned.sortedByCoord.out.idxstats",
+        flagstat="results/01_preprocess/10_star_aligned/{sample}_trimmed_Aligned.sortedByCoord.out.flagstat"
+    log:
+        star="logs/10_star_aligned/{sample}_staralign.log",
+        index="logs/10_star_aligned/{sample}_index.log",
+    conda:
+        "envs/star.yaml"
+    threads: 7
+    shell:
+        """
+        STAR \
+            --runThreadN {threads} \
+            --genomeDir {config[star_genome_dir]} \
+            --sjdbGTFfile {config[GTF_file]} \
+            --readFilesCommand zcat \
+            --readFilesIn {input.R1} {input.R2} \
+        --outFileNamePrefix results/01_preprocess/10_star_aligned/{wildcards.sample}_trimmed_ \
+        --outSAMtype BAM SortedByCoordinate > {log.star} 2>&1
+
+        # Generate index for the output BAM file
+        samtools index {output.bam}
+        samtools idxstats {output.bam} > {output.idxstat} 
+        samtools flagstat {output.bam} > {output.flagstat}
+        """
+
+rule umi_deduplication:
+    input:
+        bam="results/01_preprocess/10_star_aligned/{sample}_trimmed_Aligned.sortedByCoord.out.bam"
+    output:
+        dedup_bam="results/01_preprocess/11_umi_deduplicated/{sample}_trimmed_Aligned_sorted_dedup.bam",
+        dedup_bam_index="results/01_preprocess/11_umi_deduplicated/{sample}_trimmed_Aligned_sorted_dedup.bam.bai",
+        copied_log="results/01_preprocess/11_umi_deduplicated/{sample}_deduplication_log.txt"
+    log:
+        "logs/11_UMI_deduplication/{sample}_deduplication_log.txt"
+    conda:
+        "envs/umi.yaml"
+    threads: 4
+    shell:
+        """
+        # Deduplicate BAM file using umi_tools dedup
+        umi_tools dedup \
+        --stdin={input.bam} \
+        --log={log} \
+        --stdout {output.dedup_bam} \
+        --temp-dir /mnt/IM/groupMansuy/leo/LPD2/SpermRNA/tmp \
+        --paired --buffer-whole-contig \
+        2>> {log}
+
+        # Generate index for the deduplicated BAM file
+        samtools index {output.dedup_bam}
+
+        # Copy the log file to the desired output directory
+        cp {log} {output.copied_log}
+        """
+
+
+rule salmon_post_dedup:
+    input:
+        bam="results/01_preprocess/11_umi_deduplicated/{sample}_trimmed_Aligned_sorted_dedup.bam"
+    output:
+        quant="results/01_preprocess/12_salmon_post_dedup/{sample}_quant/quant.sf",
+        tmp_R1=temp("results/tmp/{sample}_R1.fastq"),
+        tmp_R2=temp("results/tmp/{sample}_R2.fastq")
+    log:
+        salmon="logs/12_salmon_post_dedup/{sample}_salmon.log",
+        samtools_fastq="logs/12_salmon_post_dedup/{sample}_samtools_fastq.log"
+    conda:
+        "envs/salmonsort.yaml"
+    threads: 7
+    shell:
+        """
+        # Ensure the temporary directory exists
+        mkdir -p results/tmp/
+
+        # Convert BAM to FASTQ
+        samtools fastq \
+            -@ {threads} \
+            -1 {output.tmp_R1} \
+            -2 {output.tmp_R2} -n\
+            {input.bam} > {log.samtools_fastq} 2>&1
+        
+        # Run Salmon quant
+        salmon quant -i {config[salmon_index_dir]} -l A \
+        -1 {output.tmp_R1} -2 {output.tmp_R2} \
+        -p {threads} --validateMappings \
+        --output results/01_preprocess/12_salmon_post_dedup/{wildcards.sample}_quant \
+        > {log.salmon} 2>&1
+        """
+
+rule calculate_tin:
+    input:
+        bam="results/01_preprocess/10_star_aligned/{sample}_trimmed_Aligned.sortedByCoord.out.bam"
+    output:
+        tsv="results/01_preprocess/14_TinScore/{sample}.tsv"
+    conda:
+        "envs/rseqc.yaml"
+    threads: 7
+    shell:
+        """
+        if [ "{config[run_rseqc]}" = "True" ]; then
+            calculate-tin.py -r {config[bed_file]} -i {input.bam} --names={wildcards.sample} -p {threads} 1> {output.tsv}
+        else
+            echo "RSeQC analysis is turned off in the config."
+            exit 1
+        fi
+        """
+
+rule merge_tin:
+    input:
+        expand("results/01_preprocess/14_TinScore/{sample}.tsv", sample=config["samples"])
+    output:
+        "results/01_preprocess/14_TinScore/merged.tsv"
+    conda:
+        "envs/rseqc.yaml"
+    shell:
+        """
+        if [ "{config[run_rseqc]}" = "True" ]; then
+            merge-tin.py --input-files {input} --output-file {output}
+        else
+            echo "RSeQC analysis is turned off in the config."
+            exit 1
+        fi
+        """
+
+rule plot_tin_scores:
+    input:
+        "results/01_preprocess/14_TinScore/merged.tsv"
+    output:
+        "results/02_qc_plots/14_TinScore/tin_scores.png"
+    conda:
+        "envs/r_ggplot2.yaml"
+    params:
+        run = config["run_rseqc"]
+    shell:
+        """
+        if [ "{params.run}" = "True" ]; then
+            Rscript scripts/plot_tin_scores.R {input} {output}
+        else
+            echo "RSeQC analysis is turned off in the config."
+            touch {output}  # Create a dummy file
+        fi
+        """
+
+rule calculate_genebodycoverage:
+    input:
+        bam="results/01_preprocess/10_star_aligned/{sample}_trimmed_Aligned.sortedByCoord.out.bam",
+        bam_index="results/01_preprocess/10_star_aligned/{sample}_trimmed_Aligned.sortedByCoord.out.bam.bai"
+    output:
+        pdf=temp("results/01_preprocess/15_GeneBodyCov/{sample}.geneBodyCoverage.curves.pdf"),
+        r=temp("results/01_preprocess/15_GeneBodyCov/{sample}.geneBodyCoverage.r"),
+        txt="results/01_preprocess/15_GeneBodyCov/{sample}.geneBodyCoverage.txt"
+    conda:
+        "envs/rseqc.yaml"
+    shell:
+        """
+        # Update the access and modification times of the index files
+        touch {input.bam_index}
+
+        if [ "{config[run_rseqc]}" = "True" ]; then
+            geneBody_coverage.py -r {config[bed_file]} -i {input.bam} -o results/01_preprocess/15_GeneBodyCov/{wildcards.sample}
+        else
+            echo "RSeQC analysis is turned off in the config."
+            exit 1
+        fi
+        """
+
+rule mark_genebodycoverage_completed:
+    input:
+        txts=expand("results/01_preprocess/15_GeneBodyCov/{sample}.geneBodyCoverage.txt", sample=config["samples"])
+    output:
+        completion_marker="results/01_preprocess/15_GeneBodyCov/genebodycoverage_completed.txt"
+    shell:
+        """
+        touch {output.completion_marker}
+        """
+
+
+def multiqc_inputs(wildcards):
+    inputs = []
+    
+    if config["run_rseqc"]:
+        inputs.extend([
+            "results/02_qc_plots/14_TinScore/tin_scores.png"
+            #"results/01_preprocess/15_GeneBodyCov/genebodycoverage_completed.txt"
+        ])
+    return inputs
+
+rule multiqc:
+    input:
+        multiqc_inputs
+    output:
+        html="results/02_qc_plots/{analysis}/multiqc_report.html"
+    params:
+        outdir="results/02_qc_plots/{analysis}",
+        configfile="envs/multiqc_config.yaml"
+    conda:
+        "envs/multiqc124.yaml"
+    shell:
+        """
+        multiqc -c {params.configfile} -o {params.outdir} results/01_preprocess/{wildcards.analysis} -p -s -d --interactive
+        """
