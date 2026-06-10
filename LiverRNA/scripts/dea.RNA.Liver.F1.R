@@ -1,7 +1,7 @@
 # Function to run differential analysis on RNA-seq data, adjusted for Liver RNA-seq F1 data
 
-RNA.dea.aggregated.merged <- function(pheno, strain, generation, sex, exclude = NULL, mergeBy = "Father",
-                               VarExp = "Group", CovarBio = NULL, CovarTec = NULL, scalefor = NULL, PCAvariables,
+dea.RNA.Liver.F1 <- function(pheno, strain, generation, sex, exclude = NULL, mergeBy = "Father",
+                               VarExp = "Group", CovarBio = NULL, CovarTec = NULL, scalefor = NULL,
                                CtrGroup, ExpGroup, outputdir, suffix = NULL, salmondir){
   
   # Call relevant packages
@@ -10,7 +10,6 @@ RNA.dea.aggregated.merged <- function(pheno, strain, generation, sex, exclude = 
   library(SEtools)
   library(ggplot2)
   library(cowplot)
-  library(EnhancedVolcano)
   library(pheatmap)
   library(dichromat)
   library(gprofiler2)
@@ -89,7 +88,7 @@ RNA.dea.aggregated.merged <- function(pheno, strain, generation, sex, exclude = 
     
     ##### Prepare merged pheno file
     
-    pheno.merged <- as.data.frame(matrix(data = NA, ncol = 2 + length(PCAvariables), nrow = length(MergeNames), dimnames = list(MergeNames, c(mergeBy, "Group", PCAvariables))))
+    pheno.merged <- as.data.frame(matrix(data = NA, ncol = 2 , nrow = length(MergeNames), dimnames = list(MergeNames, c(mergeBy, "Group"))))
     pheno.merged[,mergeBy] <- MergeNames
     
     # Allocate groups to MergeBy
@@ -224,13 +223,6 @@ RNA.dea.aggregated.merged <- function(pheno, strain, generation, sex, exclude = 
   print(plotPCAbeforeSVA)
   dev.off()
   
-  # PCA exploration heatmap before SVA
-  
-  source("Steg2026/functions/PCA_exploration.R")
-  
-  PCA_exploration(data = assays(se)$counts, pheno = colData(se), PCNumber = 6,
-                  variables = PCAvariables, outputpath = paste0(outputdir, dirname, "/PCAExplBeforeSVA/"))
-  
   # Plot PCA after adjusting for SVA
   pc_adj <- as.data.frame(prcomp(t(assays(se)$corrected))$x)
   varexplained <- paste(round(summary(prcomp(t(assays(se)$corrected)))$importance[2,]* 100, digits = 2),"%")
@@ -253,13 +245,7 @@ RNA.dea.aggregated.merged <- function(pheno, strain, generation, sex, exclude = 
   print(plotPCAafterSVA)
   dev.off()
   
-  # PCA exploration heatmap after SVA
-  
-  source("/mnt/groupMansuy/leo/scripts/PCA_exploration.R")
-  
-  PCA_exploration(data = assays(se)$corrected, pheno = colData(se), PCNumber = 6,
-                  variables = PCAvariables, outputpath = paste0(outputdir, dirname, "/PCAExplAfterSVA/"))
-  
+
   # DEA adjusted for SVs. Output adjusted pValues and add the results table as rowData to the SE.
   
   

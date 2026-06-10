@@ -1,7 +1,7 @@
 # Function to run differential analysis on RNA-seq data, adjusted for Liver RNA-seq F0 data
 
-RNA.dea.aggregated <- function(pheno, strain, generation, sex, exclude = NULL, 
-                    VarExp = "Group", CovarBio = NULL, CovarTec = NULL, scalefor = NULL, PCAvariables,
+dea.RNA.Liver.F0 <- function(pheno, strain, generation, sex, exclude = NULL, 
+                    VarExp = "Group", CovarBio = NULL, CovarTec = NULL, scalefor = NULL, 
                     CtrGroup, ExpGroup, outputdir, suffix = NULL, salmondir){
   
   # Call relevant packages
@@ -10,7 +10,6 @@ RNA.dea.aggregated <- function(pheno, strain, generation, sex, exclude = NULL,
   library(SEtools)
   library(ggplot2)
   library(cowplot)
-  library(EnhancedVolcano)
   library(pheatmap)
   library(dichromat)
   library(gprofiler2)
@@ -169,13 +168,7 @@ RNA.dea.aggregated <- function(pheno, strain, generation, sex, exclude = NULL,
   print(plotPCAbeforeSVA)
   dev.off()
   
-  # PCA exploration heatmap before SVA
-  
-  source("/Steg2026/functions/PCA_exploration.R")
-  
-  PCA_exploration(data = assays(se)$counts, pheno = colData(se), PCNumber = 6,
-                  variables = PCAvariables, outputpath = paste0(outputdir, dirname, "/PCAExplBeforeSVA/"))
-  
+
   # Plot PCA after adjusting for SVA
   pc_adj <- as.data.frame(prcomp(t(assays(se)$corrected))$x)
   varexplained <- paste(round(summary(prcomp(t(assays(se)$corrected)))$importance[2,]* 100, digits = 2),"%")
@@ -198,11 +191,7 @@ RNA.dea.aggregated <- function(pheno, strain, generation, sex, exclude = NULL,
   print(plotPCAafterSVA)
   dev.off()
   
-  # PCA exploration heatmap after SVA
-  
-  PCA_exploration(data = assays(se)$corrected, pheno = colData(se), PCNumber = 6,
-                  variables = PCAvariables, outputpath = paste0(outputdir, dirname, "/PCAExplAfterSVA/"))
-  
+
   # DEA adjusted for SVs. Output adjusted pValues and add the results table as rowData to the SE.
 
   

@@ -1,0 +1,179 @@
+---
+title: "LiverRNA F0 analysis"
+author: "Leonard C. Steg"
+date: '2025-10-16'
+output: html_document
+---
+
+Read in pheno file with metadata
+```{r}
+pheno <- read.csv("LiverRNA/pheno.csv", row.names = 1)
+```
+
+Load DEA function
+```{r}
+source("LiverRNA/scripts/dea.RNA.Liver.F0.R")
+```
+
+Run DEA for B6 F0 Males
+```{r}
+dea.RNA.Liver.F0(pheno = pheno, strain = "B6", generation = "F0", sex = "Male", exclude = NULL, 
+                 VarExp = "Group", CovarBio = NULL, CovarTec = c(), scalefor = c(),
+                 CtrGroup = "CTR", ExpGroup = "LPD", outputdir = "LiverRNA/results/03_dea/", salmondir = "results/preprocess_01/05_salmon_quant/",
+                 suffix ="Basemodel")
+```
+
+Run DEA for PWK F0 Males
+```{r}
+dea.RNA.Liver.F0(pheno = pheno, strain = "PWK", generation = "F0", sex = "Male", exclude = NULL, 
+                 VarExp = "Group", CovarBio = NULL, CovarTec = c(), scalefor = c(), 
+                 CtrGroup = "CTR", ExpGroup = "LPD", outputdir = "LiverRNA/results/03_dea/", salmondir = "results/preprocess_01/05_salmon_quant/",
+                 suffix ="Basemodel")
+```
+
+
+Load B6 F0 results and plot volcano plot and GO bar plot
+```{r} 
+dir <- "LiverRNA/results/03_dea/B6-F0-Male-Basemodel/"
+
+se.b6 <- readRDS(paste0(dir,"SE.rds"))
+
+VolcanoPlotGGPlot(dataframe = as.data.frame(rowData(se.b6)), logFC = "dea.logFC", PValues = "dea.padj",
+                  xlimits = 6, ylimits = 28,
+                  color.highlight ="#404040" ,output = dir)
+
+GoTermBarplot(GO.res = metadata(se.b6)$go_merged, color.low = "#E1E1E1", color.high = "#404040",xlimits = 10,
+              output = dir,print = T)
+
+res.b6 <- as.data.frame(rowData(se.b6))
+
+sum(res.b6$dea.padj < 0.05 & res.b6$dea.logFC > 0.5)
+#54
+sum(res.b6$dea.padj < 0.05 & res.b6$dea.logFC < -0.5)
+#131
+
+```
+
+Load PWK F0 results and plot volcano plot and GO bar plot
+```{r} 
+dir <- "LiverRNA/results/03_dea/PWK-F0-Male-Basemodel/"
+
+se.pwk <- readRDS(paste0(dir,"SE.rds"))
+
+VolcanoPlotGGPlot(dataframe = as.data.frame(rowData(se.pwk)), logFC = "dea.logFC", PValues = "dea.padj", 
+                  xlimits = 6, ylimits = 28,
+                  color.highlight ="#B59031" ,output = dir)
+
+GoTermBarplot(GO.res = metadata(se.pwk)$go_merged, color.low = "#f7d9c6", color.high = "#B59031", xlimits = 10,
+              output = dir,print = T)
+
+res.pwk <- as.data.frame(rowData(se.pwk))
+
+sum(res.pwk$dea.padj < 0.05 & res.pwk$dea.logFC > 0.5)
+#47
+sum(res.pwk$dea.padj < 0.05 & res.pwk$dea.logFC < -0.5)
+#83
+
+```
+
+Supplements:
+Violin plots for some selected genes in B6 and PWK fathers
+```{r}
+genes <- c("Smpd3","Fgf21", "Lepr")
+
+source("scripts/plot_violin_gene.R")
+
+# Plot for B6 results
+for (i in 1:length(genes)) {
+    plot_violin_gene(se = se.b6, assay = "logcpm",  genes[i],
+                   name = paste0("ViolinPlot_", genes[i],".pdf"), 
+                   outdir = "LiverRNA/results/03_dea/B6-F0-Male-Basemodel/ViolinPlots/")
+  
+}
+
+# Plot for PWK results
+for (i in 1:length(genes)) {
+    plot_violin_gene(se = se.pwk, assay = "logcpm",  genes[i],
+                   name = paste0("ViolinPlot_", genes[i],".pdf"), 
+                   outdir = "LiverRNA/results/03_dea/PWK-F0-Male-Basemodel/ViolinPlots/")
+  
+}
+```
+
+Plot the overlap between B6 and PWK DEGs
+```{r}
+b6.up <- res.b6[res.b6$dea.padj < 0.05 & res.b6$dea.logFC > 0.5,]
+# 54
+b6.down <- res.b6[res.b6$dea.padj < 0.05 & res.b6$dea.logFC < -0.5,]
+# 131
+
+pwk.up <- res.pwk[res.pwk$dea.padj < 0.05 & res.pwk$dea.logFC > 0.5,]
+# 47
+pwk.down <- res.pwk[res.pwk$dea.padj < 0.05 & res.pwk$dea.logFC < -0.5,]
+# 83
+
+overlap.up <- b6.up[rownames(b6.up) %in% rownames(pwk.up),]
+# 2
+overlap.down <- b6.down[rownames(b6.down) %in% rownames(pwk.down),]
+# 5
+
+# Plot as barplot:
+
+df <-  as.data.frame(matrix(NA, nrow = 6, ncol = 3, dimnames = list(NULL, c("Direction", "Overlap", "Number"))))
+
+df$Direction <- c(rep("Up", 3), rep("Down", 3))
+
+df$Overlap <- rep(c("B6 specific", "Overlap", "PWK specific"), 2)
+
+df[1,]$Number <- nrow(b6.up) - nrow(overlap.up)
+df[2,]$Number <- nrow(overlap.up)
+df[3,]$Number <- nrow(pwk.up) - nrow(overlap.up)
+df[4,]$Number <- nrow(b6.down) - nrow(overlap.down)
+df[5,]$Number <- nrow(overlap.down)
+df[6,]$Number <- nrow(pwk.down) - nrow(overlap.down)
+
+# (Optional) order the fill so the stack is consistent
+df$Overlap <- factor(df$Overlap, levels = c("B6 specific", "Overlap", "PWK specific"))
+df$Direction <- factor(df$Direction, levels = c("Down", "Up"))
+
+# Optional totals (for label above bars)
+totals <- df %>%
+  group_by(Direction) %>%
+  summarise(Total = sum(Number), .groups = "drop")
+
+# Plot as counts
+overlap.b6.pwk <- ggplot(df, aes(x = Direction, y = Number, fill = Overlap)) +
+  geom_col(width = 0.6) +
+  geom_text(
+    aes(label = ifelse(Number > 0, Number, "")),
+    position = position_stack(vjust = 0.5),
+    size = 3
+  ) +
+  # optional: add total above each bar
+  geom_text(
+    data = totals,
+    aes(x = Direction, y = Total, label = Total),
+    inherit.aes = FALSE,
+    vjust = -0.3,
+    size = 3
+  ) + 
+  scale_fill_manual(
+    values = c(
+      "B6 specific"  = "#404040",
+      "Overlap"      = "#CCCCCC",
+      "PWK specific" = "#E9945E"
+    )
+  ) +
+  labs(
+    x = NULL,
+    y = "Number of DEGs",
+    fill = "Expression",
+    title = "Overlaps between father liver RNA-seq results"
+  ) +
+  theme_cowplot(font_size = 8) +
+  coord_cartesian(clip = "off")  # keeps the total label visible if it sits above the panel
+
+
+ggsave("overlap.b6.pwk.number.pdf", plot = overlap.b6.pwk, device = NULL, path = "LiverRNA/results/", 
+       width = 5, height = 5, units = "cm")
+```

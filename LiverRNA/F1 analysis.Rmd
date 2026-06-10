@@ -1,0 +1,665 @@
+---
+title: "F1 analysis"
+author: "Leonard C. Steg"
+date: '2025-10-16'
+output: html_document
+---
+
+Read in pheno file with metadata
+```{r}
+pheno <- read.csv("LiverRNA/pheno.csv", row.names = 1)
+```
+
+Load DEA function
+```{r}
+source("LiverRNA/scripts/dea.RNA.Liver.F1.R")
+```
+
+Run DAE for male offspring of B6 fathers
+```{r}
+dea.RNA.Liver.F1(pheno = pheno, strain = "B6", generation = "F1", sex = "Male", exclude = NULL, mergeBy = "Father",
+                 VarExp = "Group", CovarBio = NULL, CovarTec = c(), VarNested = NULL, scalefor = c(), 
+                 CtrGroup = "CTR", ExpGroup = "LPD", outputdir = "LiverRNA/results/03_dea/", salmondir = "results/preprocess_01/05_salmon_quant/",
+                 suffix ="MergedFather_Basemodel")
+```
+
+
+Run DEA for female offspring of B6 fathers
+```{r}
+dea.RNA.Liver.F1(pheno = pheno, strain = "B6", generation = "F1", sex = "Female", exclude = NULL, mergeBy = "Father",
+                 VarExp = "Group", CovarBio = NULL, CovarTec = c(), VarNested = NULL, scalefor = c(),
+                 CtrGroup = "CTR", ExpGroup = "LPD", outputdir = "LiverRNA/results/03_dea/", salmondir = "results/preprocess_01/05_salmon_quant/",
+                 suffix ="MergedFather_Basemodel")
+```
+
+Load functions for plotting
+```{r}
+source("Steg2026/scripts/VolcanoPlotGGPlot.R")
+
+source("Steg2026/scripts/GoTermBarplot.R")
+```
+
+Load results plot volcano plot and GO bar plot for male offspring of B6 fathers
+```{r}
+dir <- "LiverRNA/results/03_dea/B6-F1-Male-MergedFather_Basemodel/"
+
+se.males <- readRDS(paste0(dir, "SE.rds"))
+
+VolcanoPlotGGPlot(dataframe = as.data.frame(rowData(se.males)), logFC = "dea.logFC", PValues = "dea.padj",
+                  xlimits = 5, ylimits = 50,
+                  color.highlight ="#3849A9" ,output = dir)
+
+GoTermBarplot(GO.res = metadata(se.males)$go_merged, color.low = "#cbd0ee", color.high = "#3849A9",xlimits = 9,
+              output = dir,print = T)
+
+
+res.males <- as.data.frame(rowData(se.males))
+
+sum(res.males$dea.padj < 0.05 & res.males$dea.logFC > 0.5)
+# 38
+sum(res.males$dea.padj < 0.05 & res.males$dea.logFC < -0.5)
+# 13
+```
+
+Load results plot volcano plot and GO bar plot for female offspring of B6 fathers
+```{r}
+dir <- "LiverRNA/results/03_dea/B6-F1-Female-MergedFather_Basemodel/"
+
+se.females <- readRDS(paste0(dir, "SE.rds"))
+
+VolcanoPlotGGPlot(dataframe = as.data.frame(rowData(se.females)), logFC = "dea.logFC", PValues = "dea.padj",
+                  xlimits = 5, ylimits = 50,
+                  color.highlight ="#A93849" ,output = dir)
+
+GoTermBarplot(GO.res = metadata(se.females)$go_merged, color.low = "#eecbd0", color.high = "#A93849",xlimits = 9,
+              output = dir,print = T)
+
+
+res.females <- as.data.frame(rowData(se.females))
+
+sum(res.females$dea.padj < 0.05 & res.females$dea.logFC > 0.5)
+# 20
+sum(res.females$dea.padj < 0.05 & res.females$dea.logFC < -0.5)
+# 21
+```
+
+
+
+Supplements
+
+Violin plots for selected genes
+```{r}
+se.males.plot <- readRDS("LiverRNA/results/03_dea/B6-F1-Male-Basemodel/SE.rds")
+
+se.females.plot <- readRDS("LiverRNA/results/03_dea/B6-F1-Female-Basemodel/SE.rds")
+
+source("Steg2026/scripts/plot_violin_gene.R")
+
+genes <- c("Pnpla3","Cyp2b9")
+
+for (i in 1:length(genes)) {
+    plot_violin_gene(se = se.males.plot, assay = "logcpm",  genes[i],
+                   name = paste0("ViolinPlot_", genes[i],".pdf"), 
+                   outdir = "LiverRNA/results/03_dea/B6-F1-Male-Basemodel/ViolinPlots/")
+  
+}
+
+genes <- c("Pnpla3","Cyp2b9", "Cyp3a16")
+
+for (i in 1:length(genes)) {
+    plot_violin_gene(se = se.females.plot, assay = "logcpm",  genes[i],
+                   name = paste0("ViolinPlot_", genes[i],".pdf"), 
+                   outdir = "LiverRNA/results/03_dea/B6-F1-Female-Basemodel/ViolinPlots/")
+  
+}
+```
+
+Plot overlap between fathers and offspring males DEGs
+```{r}
+# Load results from B6 fathers
+se.fathers <- readRDS("LiverRNA/results/03_dea/B6-F0-Male-Basemodel/SE.rds")
+res.fathers <- as.data.frame(rowData(se.fathers))
+
+males.up   <- res.males[res.males$dea.padj < 0.05 & res.males$dea.logFC >  0.5,]
+males.down <- res.males[res.males$dea.padj < 0.05 & res.males$dea.logFC < -0.5,]
+
+fathers.up   <- res.fathers[res.fathers$dea.padj < 0.05 & res.fathers$dea.logFC >  0.5,]
+fathers.down <- res.fathers[res.fathers$dea.padj < 0.05 & res.fathers$dea.logFC < -0.5,]
+
+overlap.up   <- males.up[rownames(males.up) %in% rownames(fathers.up),]
+overlap.down <- males.down[rownames(males.down) %in% rownames(fathers.down),]
+
+# Plot as barplot (counts)
+df <- as.data.frame(matrix(NA, nrow = 6, ncol = 3,
+                           dimnames = list(NULL, c("Direction", "Overlap", "Number"))))
+
+df$Direction <- c(rep("Up", 3), rep("Down", 3))
+df$Overlap   <- rep(c("Male offspring specific", "Overlap", "Father specific"), 2)
+
+df[1, "Number"] <- nrow(males.up)     - nrow(overlap.up)
+df[2, "Number"] <- nrow(overlap.up)
+df[3, "Number"] <- nrow(fathers.up)   - nrow(overlap.up)
+
+df[4, "Number"] <- nrow(males.down)   - nrow(overlap.down)
+df[5, "Number"] <- nrow(overlap.down)
+df[6, "Number"] <- nrow(fathers.down) - nrow(overlap.down)
+
+# Order factors: consistent stack + Down left, Up right
+df$Overlap <- factor(df$Overlap, levels = c("Father specific", "Overlap", "Male offspring specific"))
+df$Direction <- factor(df$Direction, levels = c("Down", "Up"))
+
+# Totals for label above bars
+totals <- df %>%
+  group_by(Direction) %>%
+  summarise(Total = sum(Number), .groups = "drop")
+
+overlap.fathers.males <- ggplot(df, aes(x = Direction, y = Number, fill = Overlap)) +
+  geom_col(width = 0.6) +
+  geom_text(
+    aes(label = ifelse(Number > 0, Number, "")),
+    position = position_stack(vjust = 0.5),
+    size = 3
+  ) +
+  geom_text(
+    data = totals,
+    aes(x = Direction, y = Total, label = Total),
+    inherit.aes = FALSE,
+    vjust = -0.3,
+    size = 3
+  ) +
+  scale_fill_manual(
+    values = c(
+      "Father specific"         = "#404040",
+      "Overlap"                 = "#666666",
+      "Male offspring specific" = "#3849A9"
+    )
+  ) +
+  labs(
+    x = NULL,
+    y = "Number of DEGs",
+    fill = "Expression",
+    title = "Overlaps between father and male offspring liver RNA-seq results"
+  ) +
+  ylim(c(0,150)) + 
+  theme_cowplot(font_size = 8) +
+  coord_cartesian(clip = "off")
+
+ggsave(
+  "overlap.fathers.males.number.pdf",
+  plot = overlap.fathers.males,
+  device = NULL,
+  path = "LiverRNA/results/",
+  width = 6, height = 5, units = "cm"
+)
+
+```
+
+
+Plot overlap between male and female offspring DEGs
+```{r}
+
+males.up   <- res.males[res.males$dea.padj < 0.05 & res.males$dea.logFC >  0.5,]
+males.down <- res.males[res.males$dea.padj < 0.05 & res.males$dea.logFC < -0.5,]
+
+females.up   <- res.females[res.females$dea.padj < 0.05 & res.females$dea.logFC >  0.5,]
+females.down <- res.females[res.females$dea.padj < 0.05 & res.females$dea.logFC < -0.5,]
+
+overlap.up   <- males.up[rownames(males.up) %in% rownames(females.up),]
+overlap.down <- males.down[rownames(males.down) %in% rownames(females.down),]
+
+# Plot as barplot (counts)
+df <- as.data.frame(matrix(NA, nrow = 6, ncol = 3,
+                           dimnames = list(NULL, c("Direction", "Overlap", "Number"))))
+
+df$Direction <- c(rep("Up", 3), rep("Down", 3))
+df$Overlap   <- rep(c("Male offspring specific", "Overlap", "Female offspring specific"), 2)
+
+df[1, "Number"] <- nrow(males.up)     - nrow(overlap.up)
+df[2, "Number"] <- nrow(overlap.up)
+df[3, "Number"] <- nrow(females.up)   - nrow(overlap.up)
+
+df[4, "Number"] <- nrow(males.down)   - nrow(overlap.down)
+df[5, "Number"] <- nrow(overlap.down)
+df[6, "Number"] <- nrow(females.down) - nrow(overlap.down)
+
+# Order factors: consistent stack + Down left, Up right
+df$Overlap <- factor(df$Overlap, levels = c("Male offspring specific", "Overlap", "Female offspring specific"))
+df$Direction <- factor(df$Direction, levels = c("Down", "Up"))
+
+# Totals for label above bars
+totals <- df %>%
+  group_by(Direction) %>%
+  summarise(Total = sum(Number), .groups = "drop")
+
+overlap.females.males <- ggplot(df, aes(x = Direction, y = Number, fill = Overlap)) +
+  geom_col(width = 0.6) +
+  geom_text(
+    aes(label = ifelse(Number > 0, Number, "")),
+    position = position_stack(vjust = 0.5),
+    size = 3
+  ) +
+  geom_text(
+    data = totals,
+    aes(x = Direction, y = Total, label = Total),
+    inherit.aes = FALSE,
+    vjust = -0.3,
+    size = 3
+  ) +
+  scale_fill_manual(
+    values = c(
+      "Male offspring specific"   = "#3849A9",
+      "Overlap"                   = "#666666",
+      "Female offspring specific" = "#A93849"
+    )
+  ) +
+  labs(
+    x = NULL,
+    y = "Number of DEGs",
+    fill = "Expression",
+    title = "Overlaps between male and female offspring liver RNA-seq results"
+  ) +
+  ylim(c(0,150)) + 
+  theme_cowplot(font_size = 8) +
+  coord_cartesian(clip = "off")
+
+ggsave(
+  "overlap.females.males.offspring.pdf",
+  plot = overlap.females.males,
+  device = NULL,
+  path = "LiverRNA/results/",
+  width = 6, height = 5, units = "cm"
+)
+
+```
+
+Prepare a matrix with the allelic expression of each gene in sample
+
+Load in maternal and paternal count tables
+```{r}
+# Load in maternal and paternal count tables
+
+# Read in counts from salmon using tximport
+txdb <- TxDb.Mmusculus.UCSC.mm10.knownGene
+# Extract all the transcript names (TXNAME) as keys
+k <- keys(txdb, keytype = "TXNAME")
+# Create a mapping (tx2gene) from TXNAME (transcript IDs) to GENEID (UCSC Entrez IDs)
+tx2gene <- select(txdb, keys = k, columns = "GENEID", keytype = "TXNAME")
+# Use org.Mm.eg.db to map UCSC Entrez IDs to Ensembl Gene IDs
+ensembl_map <- mapIds(org.Mm.eg.db, 
+                      keys = tx2gene$GENEID, 
+                      column = "ENSEMBL", 
+                      keytype = "ENTREZID", 
+                      multiVals = "first")  # Takes only the first value if multiple mappings exist
+# Add the Ensembl gene IDs to the tx2gene data frame
+tx2gene$ENSEMBL <- ensembl_map[tx2gene$GENEID]
+tx2gene_mapped <- tx2gene[!is.na(tx2gene$GENEID) & !is.na(tx2gene$ENSEMBL), ]
+# Convert the ENSEMBL column from a list to a character vector
+tx2gene_mapped$ENSEMBL <- sapply(tx2gene_mapped$ENSEMBL, `[`, 1)
+
+
+# Define the directories with Salmon quant.sf files
+samples <- rownames(pheno)
+sample_dirs <- c(paste0(samples, "_genome1_quant"),paste0(samples, "_genome2_quant"))
+# Manually map the sample names to the actual directory names with _SX suffix 
+files <- file.path("LiverRNA/results/preprocess_01/12_salmon_post_snpsplit", sample_dirs, "quant.sf")
+names(files) <- c(paste0(samples, "_g1"), paste0(samples, "_g2"))
+
+if (!all(file.exists(files))){
+  stop("Not all salmon files detected, please check salmondir argument.")
+}
+
+# Use tximport and extract counts
+txi <- tximport(files, type = "salmon", tx2gene = tx2gene_mapped[, c("TXNAME", "ENSEMBL")])
+counts <- txi$counts
+
+
+# Split into maternal paternal counts
+# Genome1 = B6, Genome2 = PWK
+# Paternal genomes: B6_g1 and PWK_g2
+# Maternal genomes: B6_g2 and PWK_g1
+
+counts_pat <- counts[,c(grep("^B6.*g1$", names(files), value = TRUE),grep("^PWK.*g2$", names(files), value = TRUE))]
+
+counts_mat <- counts[,c(grep("^B6.*g2$", names(files), value = TRUE),grep("^PWK.*g1$", names(files), value = TRUE))]
+
+identical(gsub(".{3}$", "", colnames(counts_mat)),gsub(".{3}$", "", colnames(counts_pat)))
+
+# Calculate the percentage of maternal expressed transcripts for each gene and sample
+perc_mat <- as.data.frame(matrix(nrow = nrow(counts), ncol = ncol(counts_mat), dimnames = dimnames(counts_mat)))
+
+colnames(perc_mat) <- gsub(".{3}$", "", colnames(perc_mat))
+
+for (i in 1:nrow(perc_mat)){
+  for (j in 1:ncol(perc_mat)){
+    perc_mat[i,j] <- counts_mat[i,j]/(counts_mat[i,j]+counts_pat[i,j])
+    
+  }
+  
+}
+
+
+
+# Filtering the matrix to remove columns that have non-useful numbers.
+
+# Apply filterbyExpr on count matrix with groups being a vector of "Maternal" or "Paternal"
+group <- rep("Mat", ncol(counts))
+group[colnames(counts) %in% colnames(counts_pat)] <- "Pat"
+
+keep_filterbyExpr <- filterByExpr(counts <- counts, group = group)
+perc_mat <- perc_mat[keep_filterbyExpr,]
+
+# Add gene names instead of ENSG identifiers
+
+# Use org.Mm.eg.db to map Ensembl Gene IDs to Symbols
+rownames(perc_mat) <- mapIds(org.Mm.eg.db, 
+                      keys = rownames(perc_mat), 
+                      column = "SYMBOL", 
+                      keytype = "ENSEMBL", 
+                      multiVals = "first") 
+
+# Save as Rds
+saveRDS(perc_mat, file = "LiverRNA/results/perc_mat.Rds")
+```
+
+
+Allele specific analysis 1: Proportions of DEGs expressed from both alleles or from maternal/paternal alleles specifically
+
+In male offspring
+```{r}
+males <- pheno[pheno$Generation == "F1" & pheno$Strain == "B6" & pheno$Sex == "Male",]$Sample
+
+perc.mat.males <- perc.mat[,males]
+
+# Calculate the median per gene
+row_medians <- apply(perc.mat.males, 1, median)
+
+# Convert the named numeric vector to a data frame
+median_df <- data.frame(
+  name = names(row_medians),
+  row_median = as.numeric(row_medians)
+)
+
+# How many of the male DEGs are expressed on the paternal allele (median < 0.2), on both alleles (median >0.2 <0.8) or on maternal allele (median > 0.8)
+
+res.males <-   left_join(res.males, median_df, by = "name")
+
+# Plot stacked barplots of allele information of DEGs
+plot_df <- res.males %>%
+  filter(!is.na(dea.padj), !is.na(dea.logFC)) %>%
+  mutate(
+    direction = case_when(
+      dea.padj < 0.05 & dea.logFC < -0.5 ~ "Downregulated",
+      dea.padj < 0.05 & dea.logFC > 0.5  ~ "Upregulated",
+      TRUE ~ NA_character_
+    ),
+    expr_class = case_when(
+      is.na(row_median)            ~ "No allele information",
+      row_median < 0.2             ~ "Paternally expressed",
+      row_median > 0.8             ~ "Maternally expressed",
+      row_median >= 0.2 & row_median <= 0.8 ~ "Bi-allelic",
+      TRUE ~ "No allele information"
+    )
+  ) %>%
+  filter(!is.na(direction))
+
+# Summarize to counts + percentages
+plot_summ <- plot_df %>%
+  count(direction, expr_class, name = "n") %>%
+  group_by(direction) %>%
+  mutate(pct = n / sum(n)) %>%
+  ungroup() %>%
+  mutate(
+    direction = factor(direction, levels = c("Downregulated", "Upregulated")),
+    expr_class = fct_relevel(expr_class,
+                             "Paternally expressed",
+                             "Bi-allelic",
+                             "Maternally expressed",
+                             "No allele information")
+  )
+
+# Plot
+allelic.barplot.males <- ggplot(plot_summ, aes(x = direction, y = pct, fill = expr_class)) +
+  geom_col(width = 0.6) +
+  geom_text(aes(label = scales::percent(pct, accuracy = 1)),
+            position = position_stack(vjust = 0.5),
+            size = 4) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = NULL, y = "Percentage of DEGs",
+       fill = "Expression class",
+       title = "DEG by allelic expression") +
+  theme_cowplot(font_size = 8)
+
+
+ggsave(filename =  "LiverRNA/results/03_dea/B6-F1-Male-MergedFather_Basemodel/allelic.barplot.males.pdf", allelic.barplot.males,  width = 8, height = 5, units = "cm")
+
+```
+
+In female offspring
+```{r}
+females <- pheno[pheno$Generation == "F1" & pheno$Strain == "B6" & pheno$Sex == "Female",]$Sample
+
+perc.mat.females <- perc.mat[,females]
+
+# Calculate the median per gene
+row_medians <- apply(perc.mat.females, 1, median)
+
+# Convert the named numeric vector to a data frame
+median_df <- data.frame(
+  name = names(row_medians),
+  row_median = as.numeric(row_medians)
+)
+
+# How many of the male DEGs are expressed on the paternal allele (median < 0.2), on both alleles (median >0.2 <0.8) or on maternal allele (median > 0.8)
+res.females <-   left_join(res.females, median_df, by = "name")
+
+# Plot stacked barplots of allele information of DEGs
+plot_df <- res.females %>%
+  filter(!is.na(dea.padj), !is.na(dea.logFC)) %>%
+  mutate(
+    direction = case_when(
+      dea.padj < 0.05 & dea.logFC < -0.5 ~ "Downregulated",
+      dea.padj < 0.05 & dea.logFC > 0.5  ~ "Upregulated",
+      TRUE ~ NA_character_
+    ),
+    expr_class = case_when(
+      is.na(row_median)            ~ "No allele information",
+      row_median < 0.2             ~ "Paternally expressed",
+      row_median > 0.8             ~ "Maternally expressed",
+      row_median >= 0.2 & row_median <= 0.8 ~ "Bi-allelic",
+      TRUE ~ "No allele information"
+    )
+  ) %>%
+  filter(!is.na(direction))
+
+# Summarize to counts + percentages
+plot_summ <- plot_df %>%
+  count(direction, expr_class, name = "n") %>%
+  group_by(direction) %>%
+  mutate(pct = n / sum(n)) %>%
+  ungroup() %>%
+  mutate(
+    direction = factor(direction, levels = c("Downregulated", "Upregulated")),
+    expr_class = fct_relevel(expr_class,
+                             "Paternally expressed",
+                             "Bi-allelic",
+                             "Maternally expressed",
+                             "No allele information")
+  )
+
+# Plot
+allelic.barplot.females <- ggplot(plot_summ, aes(x = direction, y = pct, fill = expr_class)) +
+  geom_col(width = 0.6) +
+  geom_text(aes(label = scales::percent(pct, accuracy = 1)),
+            position = position_stack(vjust = 0.5),
+            size = 4) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = NULL, y = "Percentage of DEGs",
+       fill = "Expression class",
+       title = "DEGs by allelic expression") +
+  theme_cowplot(font_size = 8)
+  
+ggsave(filename =  "LiverRNA/results/03_dea/B6-F1-Female-MergedFather_Basemodel/allelic.barplot.females.pdf", allelic.barplot.females,  width = 8, height = 5, units = "cm")
+```
+
+
+Allele specific analysis 2: Test whether DEGs change their allelic expression patterns due to paternal LPD
+
+In male offspring
+```{r}
+# Prepare dataframe
+pheno.males <- pheno[pheno$Generation == "F1" & pheno$Strain == "B6" & 
+                       pheno$Sex == "Male",]
+
+perc.mat.males <- perc.mat.males[,pheno.males$Sample]
+
+perc.mat.males <- perc.mat.males[res.males[res.males$dea.padj < 0.05 & abs(res.males$dea.logFC) > 0.5,]$name,]
+
+perc.mat.males <- perc.mat.males[complete.cases(perc.mat.males),]
+
+allele.switch.males <- as.data.frame(matrix(NA, nrow = nrow(perc.mat.males), ncol = 4, 
+                                            dimnames = list(rownames(perc.mat.males), 
+                                                            c("PValue", "Mean LPD", "Mean CTR", "Diff"))))
+
+
+for (i in 1:nrow(allele.switch.males)){
+  
+  test.results <- t.test(as.numeric(perc.mat.males[i,]) ~ as.factor(pheno.males$Group))
+  
+  allele.switch.males[i,]$PValue <- test.results$p.value
+  allele.switch.males[i,]$`Mean LPD` <- test.results$estimate[1]
+  allele.switch.males[i,]$`Mean CTR` <- test.results$estimate[2]
+  allele.switch.males[i,]$Diff <- allele.switch.males[i,]$`Mean LPD`-allele.switch.males[i,]$`Mean CTR`
+}
+
+allele.switch.males$padj <- p.adjust(allele.switch.males$PValue, method = "BH")
+
+group_df <- pheno.males[,c("Sample", "Group")]
+
+# Choose the genes to plot 
+genes_to_plot <- rownames(perc.mat.males)
+
+# Convert to long format + join group labels
+df_long <- perc.mat.males[genes_to_plot, , drop = FALSE] %>%
+  as.data.frame() %>%
+  rownames_to_column("Gene") %>%
+  pivot_longer(-Gene, names_to = "Sample", values_to = "Perc.Mat") %>%
+  left_join(group_df, by = "Sample") %>%
+  mutate(
+    # order genes as they appear in genes_to_plot, shown top-to-bottom
+    Gene  = factor(Gene, levels = rev(genes_to_plot)),
+    # ensure Control appears before LPD in the legend & dodge
+    Group = factor(Group, levels = c("CTR", "LPD"))
+  )
+
+# Order genes by median Perc.Mat (across all samples)
+gene_order <- df_long %>%
+  group_by(Gene) %>%
+  summarise(median_value = median(Perc.Mat, na.rm = TRUE)) %>%
+  arrange(desc(median_value)) %>%
+  pull(Gene)
+
+df_long <- df_long %>%
+  mutate(
+    Gene = factor(Gene, levels = gene_order),
+    Group = factor(Group, levels = c("CTR", "LPD"))
+  )
+
+# Plot and save
+allele.switch.DEGs.males.plot <- ggplot(df_long, aes(x = Gene, y = Perc.Mat, fill = Group)) +
+  geom_boxplot(width = 0.6, outlier.shape = NA, outlier.size = 1.4) +
+  coord_flip() +
+  labs(
+    x = NULL,
+    y = "Perc.Mat",
+    title = "Perc.Mat across genes by Group"
+  ) +
+  theme_cowplot(font_size = 8, line_size = 0.3) +
+  theme(
+    panel.grid.major.y = element_line(color = "grey90"),
+    panel.grid.minor = element_blank(),
+    legend.position = "right"
+  ) 
+
+ggsave(filename =  "LiverRNA/results/03_dea/B6-F1-Male-MergedFather_Basemodel/allele.switch.DEGs.males.pdf", allele.switch.DEGs.males.plot,  width = 8, height = 15, units = "cm")
+
+```
+
+In female offspring
+```{r}
+# Prepare dataframe
+pheno.females <- pheno[pheno$Generation == "F1" & pheno$Strain == "B6" & 
+                       pheno$Sex == "Female",]
+
+perc.mat.females <- perc.mat.females[,pheno.females$Sample]
+
+perc.mat.females <- perc.mat.females[res.females[res.females$dea.padj < 0.05 & abs(res.females$dea.logFC) > 0.5,]$name,]
+
+perc.mat.females <- perc.mat.females[complete.cases(perc.mat.females),]
+
+allele.switch.females <- as.data.frame(matrix(NA, nrow = nrow(perc.mat.females), ncol = 4, 
+                                            dimnames = list(rownames(perc.mat.females), 
+                                                            c("PValue", "Mean LPD", "Mean CTR", "Diff"))))
+
+
+for (i in 1:nrow(allele.switch.females)){
+  
+  test.results <- t.test(as.numeric(perc.mat.females[i,]) ~ pheno.females$Group)
+  
+  allele.switch.females[i,]$PValue <- test.results$p.value
+  allele.switch.females[i,]$`Mean LPD` <- test.results$estimate[1]
+  allele.switch.females[i,]$`Mean CTR` <- test.results$estimate[2]
+  allele.switch.females[i,]$Diff <- allele.switch.females[i,]$`Mean LPD`-allele.switch.females[i,]$`Mean CTR`
+}
+
+allele.switch.females$padj <- p.adjust(allele.switch.females$PValue, method = "BH")
+
+
+group_df <- pheno.females[,c("Sample", "Group")]
+
+# Choose the genes to plot 
+genes_to_plot <- rownames(perc.mat.females)
+
+# Convert to long format + join group labels
+df_long <- perc.mat.females[genes_to_plot, , drop = FALSE] %>%
+  as.data.frame() %>%
+  rownames_to_column("Gene") %>%
+  pivot_longer(-Gene, names_to = "Sample", values_to = "Perc.Mat") %>%
+  left_join(group_df, by = "Sample") %>%
+  mutate(
+    # order genes as they appear in genes_to_plot, shown top-to-bottom
+    Gene  = factor(Gene, levels = rev(genes_to_plot)),
+    # ensure Control appears before LPD in the legend & dodge
+    Group = factor(Group, levels = c("CTR", "LPD"))
+  )
+
+#Order genes by median Perc.Mat (across all samples)
+gene_order <- df_long %>%
+  group_by(Gene) %>%
+  summarise(median_value = median(Perc.Mat, na.rm = TRUE)) %>%
+  arrange(desc(median_value)) %>%
+  pull(Gene)
+
+df_long <- df_long %>%
+  mutate(
+    Gene = factor(Gene, levels = gene_order),
+    Group = factor(Group, levels = c("CTR", "LPD"))
+  )
+
+# Plot and save
+allele.switch.DEGs.females.plot <- ggplot(df_long, aes(x = Gene, y = Perc.Mat, fill = Group)) +
+  geom_boxplot(width = 0.6, outlier.shape = NA, outlier.size = 1.4) +
+  coord_flip() +
+  labs(
+    x = NULL,
+    y = "Perc.Mat",
+    title = "Perc.Mat across genes by Group"
+  ) +
+  theme_cowplot(font_size = 8, line_size = 0.3) +
+  theme(
+    panel.grid.major.y = element_line(color = "grey90"),
+    panel.grid.minor = element_blank(),
+    legend.position = "right"
+  ) 
+
+ggsave(filename =  "LiverRNA/results/03_dea/B6-F1-Female-MergedFather_Basemodel/allele.switch.DEGs.females.pdf", allele.switch.DEGs.females.plot,  width = 8, height = 15, units = "cm")
+```
