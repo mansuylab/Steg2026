@@ -1,0 +1,207 @@
+---
+title: "ATAC DEA B6 F0 Males"
+author: "Leonard C. Steg"
+date: '2024-04-29'
+output: html_document
+---
+
+```{r, warning=F}
+suppressPackageStartupMessages({
+  library(DiffBind)
+  library(dplyr)
+  library(rtracklayer)
+  library(Rsamtools)
+  library(cowplot)
+  library(readxl)
+  library(ggplot2)
+  library(jsonlite)
+  library(reshape2)
+  library(edgeR)
+  library(DESeq2)
+  library(csaw)
+  library(ChIPseeker)
+  library(ChIPpeakAnno)
+})
+```
+
+
+Load in pheno file with metadata
+```{r}
+pheno <- data.frame(read_csv("Steg2026/LiverATAC/pheno.csv"))
+```
+
+Define subset
+```{r}
+strain <- "B6"
+generation <- "F0"
+sex <- "Male"
+
+output <- "LiverATAC/results/dea_03/B6-F0-Male_Basemodel/"
+
+if (!file.exists(paste0(outputdir))){
+  dir.create(paste0(outputdir))
+}
+```
+
+Load DEA function
+```{r}
+source("LiverATAC/scripts/ATAC.dea.R")
+```
+
+Run DEA function
+```{r}
+ATAC.dea(pheno = pheno, bamdir = "LiverATAC/results/preprocess_01/08_NF/", peakdir = "LiverATAC/results/preprocess_01/09_peaks/",
+         strain = "B6", generation = "F0", sex = "Male", 
+         VarExp = "Group", CtrGroup = "CTR", ExpGroup = "LPD", 
+         CovarBio = NULL, CovarTec = NULL, minOverlap = 0.3,
+         outputdir = output, suffix = "Basemodel")
+```
+
+Define cutoffs
+```{r}
+pthreshold <- 0.05
+logthreshold <- 1
+```
+
+
+Read in DEA results and save bed files with ranges of DARs
+```{r}
+# Load SE with results
+SE <- readRDS("LiverATAC/results/dea_04/B6-F0-Male-Basemodel/SE.rds")
+
+up <- SE[rowData(SE)$dea$padj < pthreshold & rowData(SE)$dea$logFC > logthreshold]
+up.ranges <- granges(up)
+
+up.ranges.df <- data.frame(seqnames=seqnames(up.ranges),
+  starts=start(up.ranges)-1,
+  ends=end(up.ranges),
+  strands=strand(up.ranges))
+
+write.table(up.ranges.df, file="LiverATAC/results/dea_04/B6-F0-Male-Basemodel/up.bed", quote=F, sep="\t", row.names=F, col.names=F)
+
+down <- SE[rowData(SE)$dea$padj < pthreshold & rowData(SE)$dea$logFC < -logthreshold]
+down.ranges <- granges(down)
+
+down.ranges.df <- data.frame(seqnames=seqnames(down.ranges),
+  starts=start(down.ranges)-1,
+  ends=end(down.ranges),
+  strands=strand(down.ranges))
+
+write.table(down.ranges.df, file="LiverATAC/results/dea_04/B6-F0-Male-Basemodel/down.bed", quote=F, sep="\t", row.names=F, col.names=F)
+
+# Merge bam files
+ctr <- colData(SE)$Sample[colData(SE)$Group == "CTR"]
+lpd <- colData(SE)$Sample[colData(SE)$Group == "LPD"]
+
+ctrBam <- colData(SE)$bamReads[colData(SE)$Group == "CTR"]
+lpdBam <- colData(SE)$bamReads[colData(SE)$Group == "LPD"]
+
+system(paste0("samtools merge -@ 8 ", output, "ctrMerged.bam ", paste0(ctrBam, collapse = " ")))
+system(paste0("samtools index ", output, "ctrMerged.bam"))
+system(paste0("samtools merge -@ 8 ", output, "lpdMerged.bam ", paste0(lpdBam, collapse = " ")))
+system(paste0("samtools index ", output, "lpdMerged.bam"))
+```
+
+Plot heatmaps at DARs
+```{bash engine.opts='-l', eval=F}
+scripts/tracks.sh LiverATAC/results/dea_04/B6-F0-Male-Basemodel/ctrMerged.bam LiverATAC/results/dea_04/B6-F0-Male-Basemodel/ logs/26_mergedtracks/ 5 8
+scripts/tracks.sh LiverATAC/results/dea_04/B6-F0-Male-Basemodel/lpdMerged.bam LiverATAC/results/dea_04/B6-F0-Male-Basemodel/ logs/26_mergedtracks/ 5 8
+
+computeMatrix reference-point -R LiverATAC/results/dea_04/B6-F0-Male-Basemodel/up.bed LiverATAC/results/dea_04/B6-F0-Male-Basemodel/down.bed --referencePoint "center" -S LiverATAC/results/dea_04/B6-F0-Male-Basemodel/ctrMerged.bw LiverATAC/results/dea_04/B6-F0-Male-Basemodel/lpdMerged.bw -b 2000 -a 2000 --skipZeros -p 8 -o LiverATAC/results/dea_04/B6-F0-Male-Basemodel/DAR.mat.gz --outFileSortedRegions LiverATAC/results/dea_04/B6-F0-Male-Basemodel/DAR.bed
+
+plotHeatmap -m LiverATAC/results/dea_04/B6-F0-Male-Basemodel/DAR.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 --heatmapWidth 2 --colorMap 'Greys' --whatToShow 'plot, heatmap and colorbar' --plotType se -out LiverATAC/results/dea_04/B6-F0-Male-Basemodel/DAR.heatmap.pdf
+```
+
+
+Supplements
+
+Motif analysis B6 F0 Males using Homer findMotifsGenome.pl
+From the results, the enrichment scores and pvalues are manually entered into an excel sheet which is then used for plotting
+```{bash engine.opts='-l', eval=F}
+bed2pos.pl LiverATAC/results/dea_04/B6-F0-Male-Basemodel/up.bed > LiverATAC/results/dea_04/B6-F0-Male-Basemodel/up.pos
+
+findMotifsGenome.pl LiverATAC/results/dea_04/B6-F0-Male-Basemodel/up.pos mm10 LiverATAC/results/dea_04/B6-F0-Male-Basemodel/up -preparsedDir LiverATAC/results/dea_04/B6-F0-Male-Basemodel/preparsed/ -size 200 -mask -p 8
+
+bed2pos.pl LiverATAC/results/dea_04/B6-F0-Male-Basemodel/down.bed > LiverATAC/results/dea_04/B6-F0-Male-Basemodel/down.pos
+
+findMotifsGenome.pl LiverATAC/results/dea_04/B6-F0-Male-Basemodel/down.pos mm10 LiverATAC/results/dea_04/B6-F0-Male-Basemodel/down -preparsedDir LiverATAC/results/dea_04/B6-F0-Male-Basemodel/preparsed/ -size 200 -mask -p 8
+```
+
+Load in excel sheet with enrichment scores and pvalues and plot heatmap
+```{r}
+motif_data <- as.data.frame(read_excel("LiverATAC/results/TFs.motifs.xlsx", sheet = 4))
+rownames(motif_data) <- motif_data[,1]
+motif_data <- motif_data[,-1]
+
+# Plot using pheatmap
+library(pheatmap)
+    
+heatmap <- pheatmap(t(motif_data), cluster_cols = F, cluster_rows = F, show_rownames = T, show_colnames = T,
+                       color = colorRampPalette(c("white", "#b563f0"))(50),
+                       silent = F, gaps_row = c(1:8), gaps_col = c(1:3))
+
+pdf("LiverATAC/results/F0.motif.heatmap.pdf", width = 4, height = 3)
+heatmap
+dev.off()
+```
+
+
+
+Annotate peaks with ChipSeeker
+```{r}
+#Load in TxDB and function to clean up annotation dataframe
+txdb <- TxDb.Mmusculus.UCSC.mm10.knownGene
+cleanupanno <- function(annostat) {
+
+  rownames(annostat) <- annostat$Feature
+  annostat$Feature <- NULL
+  annostat <- as.data.frame(t(annostat))
+  annostat$Exon <- sum(annostat$`1st Exon`, annostat$`Other Exon`)
+  annostat$Intron <- sum(annostat$`1st Intron`, annostat$`Other Intron`)
+
+  annostat$`1st Intron` <- NULL
+  annostat$`Other Intron` <- NULL
+  annostat$`1st Exon` <- NULL
+  annostat$`Other Intron` <- NULL
+
+  annostat <- as.data.frame(t(annostat))
+  annostat$Feature <- rownames(annostat)
+  
+  annostat$FrequencyPercent <- annostat$Frequency/100
+  
+  return(annostat)
+  
+}
+
+# Get everything for Down DARs
+anno.down <- annotatePeak(down.ranges, TxDb = txdb,genomicAnnotationPriority = c("Promoter", "5UTR", "3UTR", "Exon", "Intron","Intergenic" ),
+                     tssRegion = c(-1000, 1000))
+annostat.down <- as.data.frame(anno.down@annoStat)
+annostat.down <- cleanupanno(annostat = annostat.down)
+
+annostat.down$DARs <- "Down DARs"
+
+# Get everything for Up DARs
+anno.up <- annotatePeak(up.ranges, TxDb = txdb,genomicAnnotationPriority = c("Promoter", "5UTR", "3UTR", "Exon", "Intron","Intergenic" ),
+                     tssRegion = c(-1000, 1000))
+annostat.up <- as.data.frame(anno.up@annoStat)
+annostat.up <- cleanupanno(annostat = annostat.up)
+
+annostat.up$DARs <- "Up DARs"
+
+annostat.merged <- rbind(annostat.up, annostat.down)
+
+plot <- ggplot(annostat.merged, aes(fill=Feature, y=Frequency, DARs)) + 
+  geom_bar(position="fill", stat="identity") +
+  scale_color_viridis(discrete=TRUE, option="cividis") + 
+  theme_classic()
+
+ggsave(paste0(output, "DAR.genomic.distribution.pdf"), plot, width = 6, height = 6)
+```
+
+Plot histone PTMs from public datasets at DARs
+```{bash engine.opts='-l', eval=F}
+computeMatrix reference-point -R LiverATAC/results/dea_04/B6-F0-Male-Basemodel/up.bed LiverATAC/results/dea_04/B6-F0-Male-Basemodel/down.bed --referencePoint "center" -S Public_data/Liver/08_tracks/Liver_H3K4me1.merged.bw Public_data/Liver/08_tracks/Liver_H3K4me3.merged.bw Public_data/Liver/08_tracks/Liver_H3K27ac.merged.bw -b 2000 -a 2000 --skipZeros -p 8 -o LiverATAC/results/dea_04/B6-F0-Male-Basemodel/DAR.PTMs.mat.gz --outFileSortedRegions LiverATAC/results/dea_04/B6-F0-Male-Basemodel/DAR.PTMs.bed
+
+plotHeatmap -m LiverATAC/results/dea_04/B6-F0-Male-Basemodel/DAR.PTMs.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 --heatmapWidth 2 --colorMap 'GnBu_r' 'Greens_r' 'hot_r' --whatToShow 'plot, heatmap and colorbar' --plotType se --regionsLabel "H3K4me1" "H3K4me3" "H3K27ac" -out LiverATAC/results/dea_04/B6-F0-Male-Basemodel/DAR.PTMs.heatmap.pdf
+```
