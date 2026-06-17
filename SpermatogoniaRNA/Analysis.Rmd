@@ -9,19 +9,12 @@ output: html_document
 ```{r}
 suppressPackageStartupMessages({
   library(edgeR)
-  library(limma)
-  library(EnhancedVolcano)
-  library(pheatmap)
   library(RColorBrewer)
   library(ggplot2)
-  library(ggfortify)
-  library(cowplot)
   library(SummarizedExperiment)
-  library(dichromat)
   library(cowplot)
   library(SEtools)
   library(gprofiler2)
-  library(reshape2)
   library(rtracklayer)
 })
 ```

@@ -1,0 +1,118 @@
+---
+title: "LPD2 tRNA DEA"
+author: "Leonard C. Steg"
+date: '2025-07-22'
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "/mnt/groupMansuy/leo/LPD2/Sperm_smallRNA/")
+```
+
+Read in pheno file with metadata
+```{r}
+pheno <- read.csv(file = "Steg2026/SpermSmallRNA/pheno.csv", row.names = 1)
+```
+
+Read in tRNA counts
+```{r}
+trna_bed_df <- c()
+trna_folder = "Steg2026/SpermSmallRNA/results/01_preprocess/11_trna_counts/"
+
+for(bed_files in list.files(path = trna_folder, full.names = F, recursive = F, pattern = ".sortedByCoord.tRNA_Count.bed")) {
+  
+  name <- gsub(".sortedByCoord.tRNA_Count.bed","", x = bed_files)
+  
+  trna_bed <- as.data.frame(read.table(paste0(trna_folder,bed_files[1])),header = FALSE, sep="\t",stringsAsFactors=FALSE, quote="")
+  
+  trna_col = trna_bed[, "V7", drop = FALSE]
+  colnames(trna_col) <- name
+  
+  if(isEmpty(trna_bed_df)) {
+      trna_bed_df <- trna_col
+      trna_names <- trna_bed$V4
+      rownames(trna_bed_df) <- make.unique(trna_names)
+  } else {
+      trna_bed_df <- cbind(trna_bed_df, trna_col)
+  }
+ 
+}
+
+# Collapse reads from alternative tRNAs
+trna_bed_df$tRNA_Gene = sub("\\.1$", "", rownames(trna_bed_df))
+trna_counts <- as.data.frame(trna_bed_df %>% group_by(tRNA_Gene) %>% summarise_all(.funs = sum))
+rownames(trna_counts) <- trna_counts$tRNA_Gene
+trna_counts$tRNA_Gene <- NULL
+
+```
+
+
+Prepare counts, SE and logcpm
+```{r}
+trna_counts <- trna_counts[,!(colnames(trna_counts) %in% exclude)]
+pheno <- pheno[!(rownames(pheno) %in% exclude),]
+
+se.trna<- SummarizedExperiment(assays = list(counts = as.matrix(trna_counts)),
+                             colData = DataFrame(pheno))
+
+geneExpr <- DGEList(assays(se.trna)$counts)
+geneExpr <- calcNormFactors(geneExpr, method = "TMM")
+
+
+# Filter using filterbycounts and subset se by needed transcripts
+trnas <- filterByExpr(counts <- geneExpr$counts, group = colData(se.trna)$Group)
+se.trna <- se.trna[trnas, ]
+geneExpr <- geneExpr[trnas, ]
+ntrna <- sum(trnas)
+
+# Normalize using calcNormFactors and add to se as "logcpm"
+assays(se.trna)$logcpm <- log1p(cpm(geneExpr))
+
+# Apply SVA and calculate number of SVs
+form <- formula(~Group)
+form0 <- formula(~1)
+
+se.trna <- SEtools::svacor(SE = se.trna, form = form, form0 = form0, method = "svaseq")
+nSV <- sum(grepl("SV",colnames(colData(se.trna))))
+```
+
+Run DEA
+```{r}
+formula <- formula(paste0("~Group +",paste0("SV", c(1:nSV), collapse = " + ")))
+
+design <- model.matrix(formula, data = colData(se.trna))
+
+geneExpr <- estimateDisp(geneExpr, design)
+  
+fit <- glmFit(geneExpr, design)
+lrt <- glmLRT(fit,coef=paste0("Group", "LPD"))
+  
+res <- lrt$table
+res$padj <- p.adjust(res$PValue, method = "BH")
+
+rowData(se.trna)$dea <- res
+
+saveRDS(se.trna, file = "/mnt/groupSteg2026/SpermSmallRNA/results/04_dea/se.tRNA.rds")
+```
+
+Plot p value histogram
+```{r}
+ggplot(data = rowData(se.trna)$dea, aes(x = PValue)) +
+    geom_histogram(color="#e9ecef", alpha = 0.9, breaks = seq(0, 1, by = 0.05)) +
+    xlab("P Values") +
+    ylab("") +
+    labs(title = "Histgram DEA P Values") +
+    theme_cowplot()
+```
+
+Plot volcano plot
+```{r}
+source("/mnt/groupMansuy/leo/scripts/VolcanoPlotGGPlot.R")
+
+res <- as.data.frame(rowData(se.mirna))
+
+VolcanoPlotGGPlot(dataframe = as.data.frame(rowData(se.trna)), logFC = "dea.logFC", PValues = "dea.padj", ylimits = 3,
+                  color.highlight ="#1E85D9" ,output = "/mnt/groupMansuy/leo/LPD2/Sperm_smallRNA/results/04_dea/")
+```
+

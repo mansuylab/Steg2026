@@ -1,0 +1,118 @@
+---
+title: "miRNA DEA"
+author: "Leonard C. Steg"
+date: '2025-07-22'
+output: html_document
+---
+
+```{r}
+suppressPackageStartupMessages({
+  library(edgeR)
+  library(RColorBrewer)
+  library(ggplot2)
+  library(SummarizedExperiment)
+  library(cowplot)
+  library(SEtools)
+  library(gprofiler2)
+  library(rtracklayer)
+})
+```
+
+Read in pheno file with metadata
+```{r}
+pheno <- read.csv(file = "Steg2026/SpermSmallRNA/pheno.csv", row.names = 1)
+```
+
+Read in miRNA counts
+```{r}
+mirna_counts <- c()
+mirna_folder = "Steg2026/SpermSmallRNA/results/01_preprocess/07_mirna_counts/"
+
+for(bed_files in list.files(path = mirna_folder, full.names = F, recursive = F, pattern = ".sortedByCoord.miRNA_miRBase_Count.bed")) {
+  
+  name <- gsub(".sortedByCoord.miRNA_miRBase_Count.bed","", x = bed_files)
+  
+  mirna_bed <- as.data.frame(read.table(paste0(mirna_folder,bed_files[1])),header = FALSE, sep="\t",stringsAsFactors=FALSE, quote="")
+  
+  mirna_col = mirna_bed[, "V7", drop = FALSE]
+  colnames(mirna_col) <- name
+  
+  if(isEmpty(mirna_counts)) {
+      mirna_counts <- mirna_col
+      miRNA_names <- mirna_bed$V4
+      rownames(mirna_counts) <- make.unique(miRNA_names)
+  } else {
+      mirna_counts <- cbind(mirna_counts, mirna_col)
+  }
+ 
+}
+
+```
+
+Prepare counts, SE and logcpm
+```{r}
+mirna_counts <- mirna_counts[,!(colnames(mirna_counts) %in% exclude)]
+pheno <- pheno[!(rownames(pheno) %in% exclude),]
+
+se.mirna <- SummarizedExperiment(assays = list(counts = as.matrix(mirna_counts)),
+                             colData = DataFrame(pheno))
+
+geneExpr <- DGEList(assays(se.mirna)$counts)
+geneExpr <- calcNormFactors(geneExpr, method = "TMM")
+
+# Filter using filterbycounts and subset se by needed transcripts
+mirnas <- filterByExpr(counts <- geneExpr$counts, group = colData(se.mirna)$Group)
+se.mirna <- se.mirna[mirnas, ]
+geneExpr <- geneExpr[mirnas, ]
+nmirna <- sum(mirnas)
+
+# Normalize using calcNormFactors and add to se as "logcpm"
+assays(se.mirna)$logcpm <- log1p(cpm(geneExpr))
+
+# Apply SVA and calculate number of SVs
+form <- formula(~Group)
+form0 <- formula(~1)
+
+se.mirna <- SEtools::svacor(SE = se.mirna, form = form, form0 = form0, method = "svaseq")
+nSV <- sum(grepl("SV",colnames(colData(se.mirna))))
+```
+
+Run DEA
+```{r}
+formula <- formula(paste0("~Group +",paste0("SV", c(1:nSV), collapse = " + ")))
+
+design <- model.matrix(formula, data = colData(se.mirna))
+
+geneExpr <- estimateDisp(geneExpr, design)
+  
+fit <- glmFit(geneExpr, design)
+lrt <- glmLRT(fit,coef=paste0("Group", "LPD"))
+  
+res <- lrt$table
+res$padj <- p.adjust(res$PValue, method = "BH")
+
+rowData(se.mirna)$dea <- res
+
+saveRDS(se.mirna, file = "Steg2026/SpermSmallRNA/results/03_dea/mirRNA/se.miRNA.rds")
+```
+
+Plot p value histogram
+```{r}
+ggplot(data = rowData(se.mirna)$dea, aes(x = PValue)) +
+    geom_histogram(color="#e9ecef", alpha = 0.9, breaks = seq(0, 1, by = 0.05)) +
+    xlab("P Values") +
+    ylab("") +
+    labs(title = "Histgram DEA P Values") +
+    theme_cowplot()
+```
+
+Plot Volcano plot
+```{r}
+source("Steg2026/scripts/VolcanoPlotGGPlot.R")
+
+VolcanoPlotGGPlot(as.data.frame(rowData(se.mirna)), logFC = "dea.logFC", PValues = "dea.padj",
+                  color.highlight = "#1E85D9",
+                  output = "Steg2026/SpermSmallRNA/results/03_dea/miRNA/")
+```
+
+

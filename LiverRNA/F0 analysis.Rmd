@@ -4,6 +4,19 @@ author: "Leonard C. Steg"
 date: '2025-10-16'
 output: html_document
 ---
+```{r}
+suppressPackageStartupMessages({
+  library(edgeR)
+  library(RColorBrewer)
+  library(ggplot2)
+  library(SummarizedExperiment)
+  library(cowplot)
+  library(SEtools)
+  library(gprofiler2)
+  library(rtracklayer)
+})
+```
+
 
 Read in pheno file with metadata
 ```{r}
