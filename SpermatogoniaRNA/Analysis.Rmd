@@ -203,7 +203,7 @@ Plot H3K27me3 heatmap for spermatogonia
 ```{bash engine.opts='-l', eval=F}
 cd Steg2026/SpermatogoniaRNA/results/03_dea/B6-F0-Male-Basemodel/RRHO_Sperm_BH/
 
-computeMatrix reference-point -R genes.tss.uu.bed genes.tss.dd.bed genes.tss.background.bed --referencePoint "center" -S  Public_data/Cheng_2020/H3K27me3/tracks_spermatogonia.bw -b 2000 -a 2000 --skipZeros -p 6 -o RRHO.genes.tss.K27me3.onlySPG.mat.gz --outFileSortedRegions RRHO.genes.tss.K27me3.onlySPG.bed
+computeMatrix reference-point -R genes.tss.uu.bed genes.tss.dd.bed genes.tss.background.bed --referencePoint "center" -S  Steg2026/Public_data/Cheng_2020/H3K27me3/tracks_spermatogonia.bw -b 2000 -a 2000 --skipZeros -p 6 -o RRHO.genes.tss.K27me3.onlySPG.mat.gz --outFileSortedRegions RRHO.genes.tss.K27me3.onlySPG.bed
 
 plotHeatmap -m RRHO.genes.tss.K27me3.onlySPG.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 --heatmapWidth 2 -min 0 -max 60 --colorMap 'bone_r' --whatToShow 'plot, heatmap and colorbar' --plotType se --samplesLabel  "Spermatogonia K27me3"  --regionsLabel "UU" "DD" "Random background" -out RRHO.genes.tss.K27me3.onlySPG.pdf
 ```
