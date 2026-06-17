@@ -129,20 +129,41 @@ findMotifsGenome.pl LiverATAC/results/dea_04/B6-F0-Male-Basemodel/down.pos mm10 
 
 Load in excel sheet with enrichment scores and pvalues and plot heatmap
 ```{r}
-motif_data <- as.data.frame(read_excel("LiverATAC/results/TFs.motifs.xlsx", sheet = 4))
-rownames(motif_data) <- motif_data[,1]
-motif_data <- motif_data[,-1]
+enrichment <- as.data.frame(read_excel("LiverATAC/results/TFs.motifs.xlsx", sheet = 4))
+rownames(enrichment) <- enrichment[,1]
+enrichment <- enrichment[,-1]
 
-# Plot using pheatmap
-library(pheatmap)
-    
-heatmap <- pheatmap(t(motif_data), cluster_cols = F, cluster_rows = F, show_rownames = T, show_colnames = T,
-                       color = colorRampPalette(c("white", "#b563f0"))(50),
-                       silent = F, gaps_row = c(1:8), gaps_col = c(1:3))
+target <- as.data.frame(read_excel("LiverATAC/results/TFs.motifs.xlsx", sheet = 5))
+rownames(target) <- target[,1]
+target <- target[,-1]
 
-pdf("LiverATAC/results/F0.motif.heatmap.pdf", width = 4, height = 3)
-heatmap
-dev.off()
+
+# Convert both dataframes to long (tidy) format
+enrich_long <- melt(as.matrix(enrichment), varnames = c("Sample", "TF"), value.name = "Enrichment")
+target_long <- melt(as.matrix(target), varnames = c("Sample", "TF"), value.name = "Target")
+
+# Merge them to align cell by cell
+heatmap_df <- merge(enrich_long, target_long, by = c("Sample", "TF"))
+heatmap_df$TF <- factor(heatmap_df$TF, levels = rev(colnames(enrichment)))
+# Plot with ggplot
+tf_motif_heatmap <- ggplot(heatmap_df, aes(x = Sample, y = TF, fill = Enrichment)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = round(Target, 2)), size = 2) +
+  scale_fill_gradient(
+    low = "white",
+    high = "#7638A7",
+    limits = c(0, max(heatmap_df$Enrichment, na.rm = TRUE)), 
+    name = "Enrichment"
+  )+
+  theme_minimal(base_size = 12) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid = element_blank()
+  ) +
+  labs(x = NULL, y = NULL, title = "Enrichment Heatmap with Target Values") +
+  theme_cowplot(font_size = 8)
+
+ggsave(filename =  "LiverATAC/results/F0.motif.heatmap.pdf", tf_motif_heatmap,  width = 8, height = 5, units = "cm")
 ```
 
 
