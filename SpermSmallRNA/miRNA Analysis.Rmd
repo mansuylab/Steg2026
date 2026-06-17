@@ -93,7 +93,7 @@ res$padj <- p.adjust(res$PValue, method = "BH")
 
 rowData(se.mirna)$dea <- res
 
-saveRDS(se.mirna, file = "Steg2026/SpermSmallRNA/results/03_dea/mirRNA/se.miRNA.rds")
+saveRDS(se.mirna, file = "Steg2026/SpermSmallRNA/results/03_dea/miRNA/se.miRNA.rds")
 ```
 
 Plot p value histogram

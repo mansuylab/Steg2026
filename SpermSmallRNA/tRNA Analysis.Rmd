@@ -1,13 +1,21 @@
 ---
-title: "LPD2 tRNA DEA"
+title: "tRNA DEA"
 author: "Leonard C. Steg"
 date: '2025-07-22'
 output: html_document
 ---
 
-
-```{r setup, include=FALSE}
-knitr::opts_knit$set(root.dir = "/mnt/groupMansuy/leo/LPD2/Sperm_smallRNA/")
+```{r}
+suppressPackageStartupMessages({
+  library(edgeR)
+  library(RColorBrewer)
+  library(ggplot2)
+  library(SummarizedExperiment)
+  library(cowplot)
+  library(SEtools)
+  library(gprofiler2)
+  library(rtracklayer)
+})
 ```
 
 Read in pheno file with metadata
@@ -93,7 +101,7 @@ res$padj <- p.adjust(res$PValue, method = "BH")
 
 rowData(se.trna)$dea <- res
 
-saveRDS(se.trna, file = "/mnt/groupSteg2026/SpermSmallRNA/results/04_dea/se.tRNA.rds")
+saveRDS(se.trna, file = "Steg2026/SpermSmallRNA/results/03_dea/tRNA/se.tRNA.rds")
 ```
 
 Plot p value histogram
@@ -108,11 +116,9 @@ ggplot(data = rowData(se.trna)$dea, aes(x = PValue)) +
 
 Plot volcano plot
 ```{r}
-source("/mnt/groupMansuy/leo/scripts/VolcanoPlotGGPlot.R")
-
-res <- as.data.frame(rowData(se.mirna))
+source("Steg2026/scripts/VolcanoPlotGGPlot.R")
 
 VolcanoPlotGGPlot(dataframe = as.data.frame(rowData(se.trna)), logFC = "dea.logFC", PValues = "dea.padj", ylimits = 3,
-                  color.highlight ="#1E85D9" ,output = "/mnt/groupMansuy/leo/LPD2/Sperm_smallRNA/results/04_dea/")
+                  color.highlight ="#1E85D9" ,output = "Steg2026/SpermSmallRNA/results/03_dea/tRNA/se.tRNA.rds")
 ```
 
