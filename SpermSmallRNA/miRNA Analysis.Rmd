@@ -51,9 +51,6 @@ for(bed_files in list.files(path = mirna_folder, full.names = F, recursive = F, 
 
 Prepare counts, SE and logcpm
 ```{r}
-mirna_counts <- mirna_counts[,!(colnames(mirna_counts) %in% exclude)]
-pheno <- pheno[!(rownames(pheno) %in% exclude),]
-
 se.mirna <- SummarizedExperiment(assays = list(counts = as.matrix(mirna_counts)),
                              colData = DataFrame(pheno))
 

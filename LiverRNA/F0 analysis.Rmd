@@ -20,34 +20,42 @@ suppressPackageStartupMessages({
 
 Read in pheno file with metadata
 ```{r}
-pheno <- read.csv("LiverRNA/pheno.csv", row.names = 1)
+pheno <- read.csv("Steg2026/LiverRNA/pheno.csv", row.names = 1)
 ```
 
 Load DEA function
 ```{r}
-source("LiverRNA/scripts/dea.RNA.Liver.F0.R")
+source("Steg2026/LiverRNA/scripts/dea.RNA.Liver.F0.R")
 ```
 
 Run DEA for B6 F0 Males
 ```{r}
-dea.RNA.Liver.F0(pheno = pheno, strain = "B6", generation = "F0", sex = "Male", exclude = NULL, 
-                 VarExp = "Group", CovarBio = NULL, CovarTec = c(), scalefor = c(),
-                 CtrGroup = "CTR", ExpGroup = "LPD", outputdir = "LiverRNA/results/03_dea/", salmondir = "results/preprocess_01/05_salmon_quant/",
+dea.RNA.Liver.F0(pheno = pheno, strain = "B6", generation = "F0", sex = "Male", 
+                 VarExp = "Group", CtrGroup = "CTR", ExpGroup = "LPD", 
+                 outputdir = "Steg2026/LiverRNA/results/03_dea/", 
+                 salmondir = "Steg2026/LiverRNA/results/preprocess_01/05_salmon_quant/",
                  suffix ="Basemodel")
 ```
 
 Run DEA for PWK F0 Males
 ```{r}
-dea.RNA.Liver.F0(pheno = pheno, strain = "PWK", generation = "F0", sex = "Male", exclude = NULL, 
-                 VarExp = "Group", CovarBio = NULL, CovarTec = c(), scalefor = c(), 
-                 CtrGroup = "CTR", ExpGroup = "LPD", outputdir = "LiverRNA/results/03_dea/", salmondir = "results/preprocess_01/05_salmon_quant/",
+dea.RNA.Liver.F0(pheno = pheno, strain = "PWK", generation = "F0", sex = "Male", 
+                 VarExp = "Group", CtrGroup = "CTR", ExpGroup = "LPD", 
+                 outputdir = "Steg2026/LiverRNA/results/03_dea/", 
+                 salmondir = "Steg2026/LiverRNA/results/preprocess_01/05_salmon_quant/",
                  suffix ="Basemodel")
 ```
 
+Load functions for plotting
+```{r}
+source("Steg2026/scripts/VolcanoPlotGGPlot.R")
+
+source("Steg2026/scripts/GoTermBarplot.R")
+```
 
 Load B6 F0 results and plot volcano plot and GO bar plot
 ```{r} 
-dir <- "LiverRNA/results/03_dea/B6-F0-Male-Basemodel/"
+dir <- "Steg2026/LiverRNA/results/03_dea/B6-F0-Male-Basemodel/"
 
 se.b6 <- readRDS(paste0(dir,"SE.rds"))
 
@@ -69,7 +77,7 @@ sum(res.b6$dea.padj < 0.05 & res.b6$dea.logFC < -0.5)
 
 Load PWK F0 results and plot volcano plot and GO bar plot
 ```{r} 
-dir <- "LiverRNA/results/03_dea/PWK-F0-Male-Basemodel/"
+dir <- "Steg2026/LiverRNA/results/03_dea/PWK-F0-Male-Basemodel/"
 
 se.pwk <- readRDS(paste0(dir,"SE.rds"))
 
@@ -94,13 +102,13 @@ Violin plots for some selected genes in B6 and PWK fathers
 ```{r}
 genes <- c("Smpd3","Fgf21", "Lepr")
 
-source("scripts/plot_violin_gene.R")
+source("Steg2026/scripts/plot_violin_gene.R")
 
 # Plot for B6 results
 for (i in 1:length(genes)) {
     plot_violin_gene(se = se.b6, assay = "logcpm",  genes[i],
                    name = paste0("ViolinPlot_", genes[i],".pdf"), 
-                   outdir = "LiverRNA/results/03_dea/B6-F0-Male-Basemodel/ViolinPlots/")
+                   outdir = "Steg2026/LiverRNA/results/03_dea/B6-F0-Male-Basemodel/ViolinPlots/")
   
 }
 
@@ -108,7 +116,7 @@ for (i in 1:length(genes)) {
 for (i in 1:length(genes)) {
     plot_violin_gene(se = se.pwk, assay = "logcpm",  genes[i],
                    name = paste0("ViolinPlot_", genes[i],".pdf"), 
-                   outdir = "LiverRNA/results/03_dea/PWK-F0-Male-Basemodel/ViolinPlots/")
+                   outdir = "Steg2026/LiverRNA/results/03_dea/PWK-F0-Male-Basemodel/ViolinPlots/")
   
 }
 ```
@@ -187,6 +195,6 @@ overlap.b6.pwk <- ggplot(df, aes(x = Direction, y = Number, fill = Overlap)) +
   coord_cartesian(clip = "off")  # keeps the total label visible if it sits above the panel
 
 
-ggsave("overlap.b6.pwk.number.pdf", plot = overlap.b6.pwk, device = NULL, path = "LiverRNA/results/", 
+ggsave("overlap.b6.pwk.number.pdf", plot = overlap.b6.pwk, device = NULL, path = "Steg2026/LiverRNA/results/", 
        width = 5, height = 5, units = "cm")
 ```

@@ -20,28 +20,30 @@ suppressPackageStartupMessages({
 
 Read in pheno file with metadata
 ```{r}
-pheno <- read.csv("LiverRNA/pheno.csv", row.names = 1)
+pheno <- read.csv("Steg2026/LiverRNA/pheno.csv", row.names = 1)
 ```
 
 Load DEA function
 ```{r}
-source("LiverRNA/scripts/dea.RNA.Liver.F1.R")
+source("Steg2026/LiverRNA/scripts/dea.RNA.Liver.F1.R")
 ```
 
 Run DAE for male offspring of B6 fathers
 ```{r}
-dea.RNA.Liver.F1(pheno = pheno, strain = "B6", generation = "F1", sex = "Male", exclude = NULL, mergeBy = "Father",
-                 VarExp = "Group", CovarBio = NULL, CovarTec = c(), VarNested = NULL, scalefor = c(), 
-                 CtrGroup = "CTR", ExpGroup = "LPD", outputdir = "LiverRNA/results/03_dea/", salmondir = "results/preprocess_01/05_salmon_quant/",
+dea.RNA.Liver.F1(pheno = pheno, strain = "B6", generation = "F1", sex = "Male", mergeBy = "Father",
+                 VarExp = "Group", CtrGroup = "CTR", ExpGroup = "LPD", 
+                 outputdir = "Steg2026/LiverRNA/results/03_dea/", 
+                 salmondir = "Steg2026/LiverRNA/results/preprocess_01/05_salmon_quant/",
                  suffix ="MergedFather_Basemodel")
 ```
 
 
 Run DEA for female offspring of B6 fathers
 ```{r}
-dea.RNA.Liver.F1(pheno = pheno, strain = "B6", generation = "F1", sex = "Female", exclude = NULL, mergeBy = "Father",
-                 VarExp = "Group", CovarBio = NULL, CovarTec = c(), VarNested = NULL, scalefor = c(),
-                 CtrGroup = "CTR", ExpGroup = "LPD", outputdir = "LiverRNA/results/03_dea/", salmondir = "results/preprocess_01/05_salmon_quant/",
+dea.RNA.Liver.F1(pheno = pheno, strain = "B6", generation = "F1", sex = "Female", mergeBy = "Father",
+                 VarExp = "Group", CtrGroup = "CTR", ExpGroup = "LPD", 
+                 outputdir = "Steg2026/LiverRNA/results/03_dea/", 
+                 salmondir = "Steg2026/LiverRNA/results/preprocess_01/05_salmon_quant/",
                  suffix ="MergedFather_Basemodel")
 ```
 
@@ -54,7 +56,7 @@ source("Steg2026/scripts/GoTermBarplot.R")
 
 Load results plot volcano plot and GO bar plot for male offspring of B6 fathers
 ```{r}
-dir <- "LiverRNA/results/03_dea/B6-F1-Male-MergedFather_Basemodel/"
+dir <- "Steg2026/LiverRNA/results/03_dea/B6-F1-Male-MergedFather_Basemodel/"
 
 se.males <- readRDS(paste0(dir, "SE.rds"))
 
@@ -76,7 +78,7 @@ sum(res.males$dea.padj < 0.05 & res.males$dea.logFC < -0.5)
 
 Load results plot volcano plot and GO bar plot for female offspring of B6 fathers
 ```{r}
-dir <- "LiverRNA/results/03_dea/B6-F1-Female-MergedFather_Basemodel/"
+dir <- "Steg2026/LiverRNA/results/03_dea/B6-F1-Female-MergedFather_Basemodel/"
 
 se.females <- readRDS(paste0(dir, "SE.rds"))
 
@@ -102,9 +104,9 @@ Supplements
 
 Violin plots for selected genes
 ```{r}
-se.males.plot <- readRDS("LiverRNA/results/03_dea/B6-F1-Male-Basemodel/SE.rds")
+se.males.plot <- readRDS("Steg2026/LiverRNA/results/03_dea/B6-F1-Male-Basemodel/SE.rds")
 
-se.females.plot <- readRDS("LiverRNA/results/03_dea/B6-F1-Female-Basemodel/SE.rds")
+se.females.plot <- readRDS("Steg2026/LiverRNA/results/03_dea/B6-F1-Female-Basemodel/SE.rds")
 
 source("Steg2026/scripts/plot_violin_gene.R")
 
@@ -113,7 +115,7 @@ genes <- c("Pnpla3","Cyp2b9")
 for (i in 1:length(genes)) {
     plot_violin_gene(se = se.males.plot, assay = "logcpm",  genes[i],
                    name = paste0("ViolinPlot_", genes[i],".pdf"), 
-                   outdir = "LiverRNA/results/03_dea/B6-F1-Male-Basemodel/ViolinPlots/")
+                   outdir = "Steg2026/LiverRNA/results/03_dea/B6-F1-Male-Basemodel/ViolinPlots/")
   
 }
 
@@ -122,7 +124,7 @@ genes <- c("Pnpla3","Cyp2b9", "Cyp3a16")
 for (i in 1:length(genes)) {
     plot_violin_gene(se = se.females.plot, assay = "logcpm",  genes[i],
                    name = paste0("ViolinPlot_", genes[i],".pdf"), 
-                   outdir = "LiverRNA/results/03_dea/B6-F1-Female-Basemodel/ViolinPlots/")
+                   outdir = "Steg2026/LiverRNA/results/03_dea/B6-F1-Female-Basemodel/ViolinPlots/")
   
 }
 ```
@@ -130,7 +132,7 @@ for (i in 1:length(genes)) {
 Plot overlap between fathers and offspring males DEGs
 ```{r}
 # Load results from B6 fathers
-se.fathers <- readRDS("LiverRNA/results/03_dea/B6-F0-Male-Basemodel/SE.rds")
+se.fathers <- readRDS("Steg2026/LiverRNA/results/03_dea/B6-F0-Male-Basemodel/SE.rds")
 res.fathers <- as.data.frame(rowData(se.fathers))
 
 males.up   <- res.males[res.males$dea.padj < 0.05 & res.males$dea.logFC >  0.5,]
@@ -201,7 +203,7 @@ ggsave(
   "overlap.fathers.males.number.pdf",
   plot = overlap.fathers.males,
   device = NULL,
-  path = "LiverRNA/results/",
+  path = "Steg2026/LiverRNA/results/",
   width = 6, height = 5, units = "cm"
 )
 
@@ -279,7 +281,7 @@ ggsave(
   "overlap.females.males.offspring.pdf",
   plot = overlap.females.males,
   device = NULL,
-  path = "LiverRNA/results/",
+  path = "Steg2026/LiverRNA/results/",
   width = 6, height = 5, units = "cm"
 )
 
@@ -314,7 +316,7 @@ tx2gene_mapped$ENSEMBL <- sapply(tx2gene_mapped$ENSEMBL, `[`, 1)
 samples <- rownames(pheno)
 sample_dirs <- c(paste0(samples, "_genome1_quant"),paste0(samples, "_genome2_quant"))
 # Manually map the sample names to the actual directory names with _SX suffix 
-files <- file.path("LiverRNA/results/preprocess_01/12_salmon_post_snpsplit", sample_dirs, "quant.sf")
+files <- file.path("Steg2026/LiverRNA/results/preprocess_01/12_salmon_post_snpsplit", sample_dirs, "quant.sf")
 names(files) <- c(paste0(samples, "_g1"), paste0(samples, "_g2"))
 
 if (!all(file.exists(files))){
@@ -371,7 +373,7 @@ rownames(perc_mat) <- mapIds(org.Mm.eg.db,
                       multiVals = "first") 
 
 # Save as Rds
-saveRDS(perc_mat, file = "LiverRNA/results/perc_mat.Rds")
+saveRDS(perc_mat, file = "Steg2026/LiverRNA/results/perc_mat.Rds")
 ```
 
 
@@ -443,7 +445,7 @@ allelic.barplot.males <- ggplot(plot_summ, aes(x = direction, y = pct, fill = ex
   theme_cowplot(font_size = 8)
 
 
-ggsave(filename =  "LiverRNA/results/03_dea/B6-F1-Male-MergedFather_Basemodel/allelic.barplot.males.pdf", allelic.barplot.males,  width = 8, height = 5, units = "cm")
+ggsave(filename =  "Steg2026/LiverRNA/results/03_dea/B6-F1-Male-MergedFather_Basemodel/allelic.barplot.males.pdf", allelic.barplot.males,  width = 8, height = 5, units = "cm")
 
 ```
 
@@ -511,7 +513,7 @@ allelic.barplot.females <- ggplot(plot_summ, aes(x = direction, y = pct, fill = 
        title = "DEGs by allelic expression") +
   theme_cowplot(font_size = 8)
   
-ggsave(filename =  "LiverRNA/results/03_dea/B6-F1-Female-MergedFather_Basemodel/allelic.barplot.females.pdf", allelic.barplot.females,  width = 8, height = 5, units = "cm")
+ggsave(filename =  "Steg2026/LiverRNA/results/03_dea/B6-F1-Female-MergedFather_Basemodel/allelic.barplot.females.pdf", allelic.barplot.females,  width = 8, height = 5, units = "cm")
 ```
 
 
@@ -593,7 +595,7 @@ allele.switch.DEGs.males.plot <- ggplot(df_long, aes(x = Gene, y = Perc.Mat, fil
     legend.position = "right"
   ) 
 
-ggsave(filename =  "LiverRNA/results/03_dea/B6-F1-Male-MergedFather_Basemodel/allele.switch.DEGs.males.pdf", allele.switch.DEGs.males.plot,  width = 8, height = 15, units = "cm")
+ggsave(filename =  "Steg2026/LiverRNA/results/03_dea/B6-F1-Male-MergedFather_Basemodel/allele.switch.DEGs.males.pdf", allele.switch.DEGs.males.plot,  width = 8, height = 15, units = "cm")
 
 ```
 
@@ -674,5 +676,5 @@ allele.switch.DEGs.females.plot <- ggplot(df_long, aes(x = Gene, y = Perc.Mat, f
     legend.position = "right"
   ) 
 
-ggsave(filename =  "LiverRNA/results/03_dea/B6-F1-Female-MergedFather_Basemodel/allele.switch.DEGs.females.pdf", allele.switch.DEGs.females.plot,  width = 8, height = 15, units = "cm")
+ggsave(filename =  "Steg2026/LiverRNA/results/03_dea/B6-F1-Female-MergedFather_Basemodel/allele.switch.DEGs.females.pdf", allele.switch.DEGs.females.plot,  width = 8, height = 15, units = "cm")
 ```

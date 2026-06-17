@@ -58,9 +58,6 @@ trna_counts$tRNA_Gene <- NULL
 
 Prepare counts, SE and logcpm
 ```{r}
-trna_counts <- trna_counts[,!(colnames(trna_counts) %in% exclude)]
-pheno <- pheno[!(rownames(pheno) %in% exclude),]
-
 se.trna<- SummarizedExperiment(assays = list(counts = as.matrix(trna_counts)),
                              colData = DataFrame(pheno))
 
@@ -119,6 +116,6 @@ Plot volcano plot
 source("Steg2026/scripts/VolcanoPlotGGPlot.R")
 
 VolcanoPlotGGPlot(dataframe = as.data.frame(rowData(se.trna)), logFC = "dea.logFC", PValues = "dea.padj", ylimits = 3,
-                  color.highlight ="#1E85D9" ,output = "Steg2026/SpermSmallRNA/results/03_dea/tRNA/se.tRNA.rds")
+                  color.highlight ="#1E85D9" ,output = "Steg2026/SpermSmallRNA/results/03_dea/tRNA/")
 ```
 

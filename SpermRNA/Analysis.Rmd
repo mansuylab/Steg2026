@@ -42,7 +42,7 @@ source("Steg2026/SpermRNA/scripts/dea.RNA.Sperm.R")
 
 Run DEA function
 ```{r}
-RNA.dea.tximport(pheno = pheno, strain = "B6", generation = "F0", sex = "Male", 
+dea.RNA.Sperm(pheno = pheno, strain = "B6", generation = "F0", sex = "Male", 
                  VarExp = "Group", CtrGroup = "CTR", ExpGroup = "LPD", outputdir = "Steg2026/SpermRNA/results/03_dea/", 
                  salmondir = "Steg2026/SpermRNA/results/01_preprocess/12_salmon_post_dedup/",
                  suffix ="Basemodel")
@@ -50,22 +50,19 @@ RNA.dea.tximport(pheno = pheno, strain = "B6", generation = "F0", sex = "Male",
 
 Plot Volcano plot
 ```{r}
-SE <- readRDS("/Steg2026/SpermRNA/results/03_dea/B6-F0-Male-Basemodel/SE.rds")
+SE <- readRDS("Steg2026/SpermRNA/results/03_dea/B6-F0-Male-Basemodel/SE.rds")
 
 source("Steg2026/scripts/VolcanoPlotGGPlot.R")
 
 VolcanoPlotGGPlot(dataframe = as.data.frame(rowData(SE)), logFC = "dea.logFC", PValues = "dea.padj",
                   color.highlight ="#1e85d9" ,output = "Steg2026/SpermRNA/results/03_dea/B6-F0-Male-Basemodel/")
-
-
-
 ```
 
 Run DEA with samples that were used for IVF to generate embryos
 ```{r}
 exclude <- c("B6-F0-03", "B6-F0-06", "B6-F0-09", "B6-F0-20", "B6-F0-25", "B6-F0-38", "B6-F0-61", "B6-F0-64")
 
-RNA.dea.tximport(pheno = pheno, strain = "B6", generation = "F0", sex = "Male", exclude = exclude, 
+dea.RNA.Sperm(pheno = pheno, strain = "B6", generation = "F0", sex = "Male", exclude = exclude, 
                  VarExp = "Group", CtrGroup = "CTR", ExpGroup = "LPD", outputdir = "Steg2026/SpermRNA/results/03_dea/", 
                  salmondir = "Steg2026/SpermRNA/results/01_preprocess/12_salmon_post_dedup/",
                  suffix ="Basemodel_EmbryoSamples")

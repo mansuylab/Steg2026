@@ -1,4 +1,4 @@
-rrho <- function(resultsfolder, analysis1, analysis2, outputdir = "/mnt/groupMansuy/leo/play/test/", 
+rrho <- function(resultsfolder, analysis1, analysis2, outputdir = "/Steg2026/", 
                  multipletesstoption = "BH",stepsizeoption = 100, boundaryoption = 0.05,
                  label1 = NULL, label2 = NULL, pathwayanalysis = TRUE){
   

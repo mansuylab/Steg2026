@@ -42,17 +42,17 @@ pheno <- pheno[pheno$Strain == strain & pheno$Generation == generation & pheno$S
 
 Create directories
 ```{r}
-if (!file.exists("results/preprocess_01/17_fatherMerged/Males")){
-   dir.create("results/preprocess_01/17_fatherMerged/Males")
+if (!file.exists("Steg2026/LiverATAC/results/preprocess_01/17_fatherMerged/Males")){
+   dir.create("Steg2026/LiverATAC/results/preprocess_01/17_fatherMerged/Males")
 }
-if (!file.exists("results/preprocess_01/17_fatherMerged/Males/01_NF")){
-   dir.create("results/preprocess_01/17_fatherMerged/Males/01_NF")
+if (!file.exists("Steg2026/LiverATAC/results/preprocess_01/17_fatherMerged/Males/01_NF")){
+   dir.create("Steg2026/LiverATAC/results/preprocess_01/17_fatherMerged/Males/01_NF")
 }
-if (!file.exists("results/preprocess_01/17_fatherMerged/Males/02_downsampled")){
-   dir.create("results/preprocess_01/17_fatherMerged/Males/02_downsampled")
+if (!file.exists("Steg2026/LiverATAC/results/preprocess_01/17_fatherMerged/Males/02_downsampled")){
+   dir.create("Steg2026/LiverATAC/results/preprocess_01/17_fatherMerged/Males/02_downsampled")
 }
-if (!file.exists("results/preprocess_01/17_fatherMerged/Males/03_peaks")){
-   dir.create("results/preprocess_01/17_fatherMerged/Males/03_peaks")
+if (!file.exists("Steg2026/LiverATAC/results/preprocess_01/17_fatherMerged/Males/03_peaks")){
+   dir.create("Steg2026/LiverATAC/results/preprocess_01/17_fatherMerged/Males/03_peaks")
 }
 ```
 
@@ -63,7 +63,7 @@ fathers <- unique(pheno$Father)
 
 bamdir <- "results/preprocess_01/08_NF/"
 
-bamdirMerged <- "LiverATAC/results/preprocess_01/17_fatherMerged/Males/01_NF/"
+bamdirMerged <- "Steg2026/LiverATAC/results/preprocess_01/17_fatherMerged/Males/01_NF/"
 
 for (i in 1:length(fathers)){
   
@@ -77,7 +77,7 @@ for (i in 1:length(fathers)){
 
 Count reads per merged sample
 ```{bash engine.opts='-l', eval=F}
-for bam_file in LiverATAC/results/preprocess_01/17_fatherMerged/Males/01_NF/*.bam; do
+for bam_file in Steg2026/LiverATAC/results/preprocess_01/17_fatherMerged/Males/01_NF/*.bam; do
 read_count=$(samtools view -c "$bam_file") 
 echo "$bam_file: $read_count" 
 done
@@ -86,14 +86,14 @@ done
 Downsample all samples to lowest count and index downsampled bams
 ```{bash engine.opts='-l', eval=F}
 
-for FILE in LiverATAC/results/preprocess_01/17_fatherMerged/Males/01_NF/*.bam; do scripts/downsample.sh $FILE LiverATAC/results/preprocess_01/17_fatherMerged/Males/02_downsampled/ 15000000; done
+for FILE in Steg2026/LiverATAC/results/preprocess_01/17_fatherMerged/Males/01_NF/*.bam; do Steg2026/LiverATAC/scripts/downsample.sh $FILE Steg2026/LiverATAC/results/preprocess_01/17_fatherMerged/Males/02_downsampled/ 15000000; done
 
-for FILE in LiverATAC/results/preprocess_01/17_fatherMerged/Males/02_downsampled/*.bam; do samtools index -@ 10 $FILE; done
+for FILE in Steg2026/LiverATAC/results/preprocess_01/17_fatherMerged/Males/02_downsampled/*.bam; do samtools index -@ 10 $FILE; done
 ```
 
 Count reads per merged and downsampled sample
 ```{bash engine.opts='-l', eval=F}
-for bam_file in LiverATAC/results/preprocess_01/17_fatherMerged/Males/02_downsampled/*.bam; do
+for bam_file in Steg2026/LiverATAC/results/preprocess_01/17_fatherMerged/Males/02_downsampled/*.bam; do
 read_count=$(samtools view -c "$bam_file") 
 echo "$bam_file: $read_count" 
 done
@@ -101,7 +101,7 @@ done
 
 Call peaks
 ```{bash engine.opts='-l', eval=F}
-for FILE in LiverATAC/results/preprocess_01/17_fatherMerged/Males/02_downsampled/*.bam; do LiverATAC/scripts/peakcalling.sh $FILE LiverATAC/results/preprocess_01/17_fatherMerged/Males/03_peaks/ logs/27_peaksMergedFathers/; done
+for FILE in Steg2026/LiverATAC/results/preprocess_01/17_fatherMerged/Males/02_downsampled/*.bam; do Steg2026/LiverATAC/scripts/peakcalling.sh $FILE Steg2026/LiverATAC/results/preprocess_01/17_fatherMerged/Males/03_peaks/ logs/27_peaksMergedFathers/; done
 ```
 
 Merge pheno for fathers
@@ -125,30 +125,30 @@ pheno.father$Sex <- sex
 
 Load DEA function
 ```{r}
-source("LiverATAC/scripts/ATAC.dea.R")
+source("Steg2026/LiverATAC/scripts/daa.ATAC.R")
 ```
 
 Run DEA function on downsampled samples
 ```{r}
 
-ATAC.dea(pheno = pheno.father, bamdir = "results/preprocess_01/17_fatherMerged/Males/02_downsampled/", 
-         peakdir = "results/preprocess_01/17_fatherMerged/Males/03_peaks/",
-         strain = "B6", generation = "F1", sex = "Male", exclude = NULL,
+daa.ATAC(pheno = pheno.father, bamdir = "Steg2026/LiverATAC/results/preprocess_01/17_fatherMerged/Males/02_downsampled/", 
+         peakdir = "Steg2026/LiverATAC/results/preprocess_01/17_fatherMerged/Males/03_peaks/",
+         strain = "B6", generation = "F1", sex = "Male", 
          VarExp = "Group", CtrGroup = "CTR", ExpGroup = "LPD", 
-         CovarBio = NULL, CovarTec = NULL, VarNested = NULL, PCAvariables = PCAvariables, minOverlap = 0.3,
-         outputdir = "results/dea_merged_07/", suffix = "Basemodel_downsampled")
+         minOverlap = 0.3,
+         outputdir = "Steg2026/LiverATAC/results/dea_merged_07/", suffix = "Basemodel_downsampled")
 ```
 Define cutoffs and variables
 ```{r}
 # Write bed files for up and down regulated peaks
 pthreshold <- 0.05
 logthreshold <- 1
-output <- "LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/"
+output <- "Steg2026/LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/"
 ```
 
 Read in DEA results and save bed files with ranges of DARs
 ```{r}
-SE <- readRDS("LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/SE.rds")
+SE <- readRDS("Steg2026/LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/SE.rds")
 
 # Merge bam files
 ctr <- colData(SE)$Sample[colData(SE)$Group == "CTR"]
@@ -186,13 +186,13 @@ write.table(down.ranges.df, file=paste0(output, "down.bed"), quote=F, sep="\t", 
 ```
 Plot heatmap at DARs
 ```{bash engine.opts='-l', eval=F}
-LiverATAC/scripts/tracks.sh LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/ctrMerged.bam LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/ logs/26_mergedtracks/ 5 8
+Steg2026/LiverATAC/scripts/tracks.sh Steg2026/LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/ctrMerged.bam Steg2026/LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/ logs/26_mergedtracks/ 5 8
 
-LiverATAC/scripts/tracks.sh LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/lpdMerged.bam LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/ logs/26_mergedtracks/ 5 8
+Steg2026/LiverATAC/scripts/tracks.sh Steg2026/LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/lpdMerged.bam Steg2026/LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/ logs/26_mergedtracks/ 5 8
 
-computeMatrix reference-point -R LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/up.bed LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/down.bed --referencePoint "center" -S LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/ctrMerged.bw LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/lpdMerged.bw -b 2000 -a 2000 --skipZeros -p 8 -o LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/DAR.mat.gz --outFileSortedRegions LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/DAR.bed
+computeMatrix reference-point -R Steg2026/LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/up.bed Steg2026/LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/down.bed --referencePoint "center" -S Steg2026/LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/ctrMerged.bw Steg2026/LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/lpdMerged.bw -b 2000 -a 2000 --skipZeros -p 8 -o Steg2026/LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/DAR.mat.gz --outFileSortedRegions Steg2026/LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/DAR.bed
 
-plotHeatmap -m LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/DAR.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --colorMap 'Blues_r' --whatToShow 'plot, heatmap and colorbar' --plotType se --zMin 0 --zMax 0.7 -out LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/DAR.heatmap.pdf
+plotHeatmap -m Steg2026/LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/DAR.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --colorMap 'Blues_r' --whatToShow 'plot, heatmap and colorbar' --plotType se --zMin 0 --zMax 0.7 -out Steg2026/LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/DAR.heatmap.pdf
 ```
 
 
@@ -200,23 +200,23 @@ plotHeatmap -m LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/
 Motif analysis B6 F0 Males using Homer findMotifsGenome.pl
 From the results, the enrichment scores and pvalues are manually entered into an excel sheet which is then used for plotting
 ```{bash engine.opts='-l', eval=F}
-bed2pos.pl LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/up.bed > LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/up.pos
+bed2pos.pl Steg2026/LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/up.bed > Steg2026/LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/up.pos
 
-findMotifsGenome.pl LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/up.pos mm10 LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/up -preparsedDir LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/preparsed/ -size 200 -mask -p 8
+findMotifsGenome.pl Steg2026/LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/up.pos mm10 Steg2026/LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/up -preparsedDir Steg2026/LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/preparsed/ -size 200 -mask -p 8
 
 
-bed2pos.pl LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/down.bed > LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/down.pos
+bed2pos.pl Steg2026/LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/down.bed > Steg2026/LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/down.pos
 
-findMotifsGenome.pl LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/down.pos mm10 LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/down -preparsedDir LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/preparsed/ -size 200 -mask -p 8
+findMotifsGenome.pl Steg2026/LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/down.pos mm10 Steg2026/LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/down -preparsedDir Steg2026/LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/preparsed/ -size 200 -mask -p 8
 ```
 
 Load in excel sheet with enrichment scores and pvalues and plot heatmap
 ```{r}
-enrichment <- as.data.frame(read_excel("LiverATAC/results/TFs.motifs.xlsx", sheet = 2))
+enrichment <- as.data.frame(read_excel("Steg2026/LiverATAC/results/TFs.motifs.xlsx", sheet = 2))
 rownames(enrichment) <- enrichment[,1]
 enrichment <- enrichment[,-1]
 
-target <- as.data.frame(read_excel("LiverATAC/results/TFs.motifs.xlsx", sheet = 3))
+target <- as.data.frame(read_excel("Steg2026/LiverATAC/results/TFs.motifs.xlsx", sheet = 3))
 rownames(target) <- target[,1]
 target <- target[,-1]
 
@@ -246,7 +246,7 @@ tf_motif_heatmap <- ggplot(heatmap_df, aes(x = Sample, y = TF, fill = Enrichment
   labs(x = NULL, y = NULL, title = "Enrichment Heatmap with Target Values") +
   theme_cowplot(font_size = 8)
 
-ggsave(filename =  "LiverATAC/results/F1.motif.heatmap.pdf", tf_motif_heatmap,  width = 8, height = 5, units = "cm")
+ggsave(filename =  "Steg2026/LiverATAC/results/F1.motif.heatmap.pdf", tf_motif_heatmap,  width = 8, height = 5, units = "cm")
 ```
 
 Supplements
@@ -309,15 +309,15 @@ ggsave(paste0(output, "DAR.genomic.distribution.pdf"), plot, width = 6, height =
 
 Plot histone PTMs from public datasets at DARs
 ```{bash engine.opts='-l', eval=F}
-computeMatrix reference-point -R LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/up.bed LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/down.bed --referencePoint "center" -S Public_data/Liver/08_tracks/Liver_H3K4me1.merged.bw Public_data/Liver/08_tracks/Liver_H3K4me3.merged.bw Public_data/Liver/08_tracks/Liver_H3K27ac.merged.bw -b 2000 -a 2000 --skipZeros -p 8 -o LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/DAR.PTMs.mat.gz --outFileSortedRegions LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/DAR.PTMs.bed
+computeMatrix reference-point -R Steg2026/LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/up.bed Steg2026/LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/down.bed --referencePoint "center" -S Public_data/Liver/08_tracks/Liver_H3K4me1.merged.bw Public_data/Liver/08_tracks/Liver_H3K4me3.merged.bw Public_data/Liver/08_tracks/Liver_H3K27ac.merged.bw -b 2000 -a 2000 --skipZeros -p 8 -o Steg2026/LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/DAR.PTMs.mat.gz --outFileSortedRegions Steg2026/LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/DAR.PTMs.bed
 
-plotHeatmap -m LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/DAR.PTMs.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 --heatmapWidth 2 --colorMap 'GnBu_r' 'Greens_r' 'hot_r' --whatToShow 'plot, heatmap and colorbar' --plotType se --regionsLabel "H3K4me1" "H3K4me3" "H3K27ac" -out LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/DAR.PTMs.heatmap.pdf
+plotHeatmap -m Steg2026/LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/DAR.PTMs.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 --heatmapWidth 2 --colorMap 'GnBu_r' 'Greens_r' 'hot_r' --whatToShow 'plot, heatmap and colorbar' --plotType se --regionsLabel "H3K4me1" "H3K4me3" "H3K27ac" -out Steg2026/LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/DAR.PTMs.heatmap.pdf
 ```
 
 Plot ATAC signal of males in female DARs
 ```{bash engine.opts='-l', eval=F}
-computeMatrix reference-point -R LiverATAC/results/dea_merged_07/B6-F1-Female-Basemodel_downsampled/up.bed LiverATAC/results/dea_merged_07/B6-F1-Female-Basemodel_downsampled/down.bed --referencePoint "center" -S LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/ctrMerged.bw LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/lpdMerged.bw -b 2000 -a 2000 --skipZeros -p 8 -o LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/DAR.mat.gz --outFileSortedRegions LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/DAR.bed
+computeMatrix reference-point -R Steg2026/LiverATAC/results/dea_merged_07/B6-F1-Female-Basemodel_downsampled/up.bed Steg2026/LiverATAC/results/dea_merged_07/B6-F1-Female-Basemodel_downsampled/down.bed --referencePoint "center" -S Steg2026/LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/ctrMerged.bw Steg2026/LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/lpdMerged.bw -b 2000 -a 2000 --skipZeros -p 8 -o Steg2026/LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/DAR.mat.gz --outFileSortedRegions Steg2026/LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/DAR.bed
 
-plotHeatmap -m LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/DAR.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --colorMap 'Blues_r' --whatToShow 'plot, heatmap and colorbar' --plotType se --zMin 0 --zMax 0.7 -out LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/DAR.heatmap.pdf
+plotHeatmap -m Steg2026/LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/DAR.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --colorMap 'Blues_r' --whatToShow 'plot, heatmap and colorbar' --plotType se --zMin 0 --zMax 0.7 -out Steg2026/LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/DAR.heatmap.pdf
 ```
 

@@ -10,7 +10,7 @@
 # ylimits: Limits for y axis in plot in -log10(PValues).
 # color.highlight: Color to use for highlighted genes. Default "#29be4f".
 # Padjust: Whether or not the PValues column contains adjusted pValues. TRUE = adjusted, FALSE = not adjusted. Default TRUE
-# output: Folder where to save the pdf file. Default "/mnt/groupMansuy/leo/play/".
+# output: Folder where to save the pdf file. Default "/Steg2026/".
 # filename: Name to give to pdf file. Default "VolcanoGGPlot.pdf".
 # Plotwidth: Width of saved pdf in cm. Default 5 cm.
 # Plotheight: Height of saved pdf in cm. Default 5 cm.
@@ -20,7 +20,7 @@ VolcanoPlotGGPlot <- function(dataframe, logFC = "logFC",PValues = "padj",
                             logFC.thres = 0.5, PVal.thres = 0.05,
                             xlimits = NULL, ylimits = NULL,
                             color.highlight = "#29be4f", Padjust = TRUE,
-                            output = "/mnt/groupMansuy/leo/play/", filename = "VolcanoGGPlot.pdf", plotwidth = 5, plotheight = 5,
+                            output = "/Steg2026/", filename = "VolcanoGGPlot.pdf", plotwidth = 5, plotheight = 5,
                             print = FALSE){
   
   library(ggplot2)

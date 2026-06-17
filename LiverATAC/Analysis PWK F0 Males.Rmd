@@ -36,21 +36,22 @@ strain <- "PWK"
 generation <- "F0"
 sex <- "Male"
 
-output <- "LiverATAC/results/dea_03/PWK-F0-Male_Basemodel/"
+output <- "Steg2026/LiverATAC/results/dea_03/PWK-F0-Male-Basemodel/"
 
-if (!file.exists(paste0(outputdir))){
-  dir.create(paste0(outputdir))
+if (!file.exists(paste0(output))){
+  dir.create(paste0(output))
 }
 ```
 
 Load DEA function
 ```{r}
-source("LiverATAC/scripts/ATAC.dea.R")
+source("Steg2026/LiverATAC/scripts/daa.ATAC.R")
 ```
 
 Run DEA function
 ```{r}
-ATAC.dea(pheno = pheno, bamdir = "LiverATAC/results/preprocess_01/08_NF/", peakdir = "LiverATAC/results/preprocess_01/09_peaks/",
+daa.ATAC(pheno = pheno, bamdir = "Steg2026/LiverATAC/results/preprocess_01/08_NF/", 
+         peakdir = "Steg2026/LiverATAC/results/preprocess_01/09_peaks/",
          strain = "PWK", generation = "F0", sex = "Male", 
          VarExp = "Group", CtrGroup = "CTR", ExpGroup = "LPD", 
          CovarBio = NULL, CovarTec = NULL, minOverlap = 0.3,
@@ -66,7 +67,7 @@ logthreshold <- 1
 Read in DEA results and save bed files with ranges of DARs
 ```{r}
 # Load SE with results
-SE <- readRDS("LiverATAC/results/dea_04/PWK-F0-Male-Basemodel/SE.rds")
+SE <- readRDS("Steg2026/LiverATAC/results/dea_03/PWK-F0-Male-Basemodel/SE.rds")
 
 up <- SE[rowData(SE)$dea$padj < pthreshold & rowData(SE)$dea$logFC > logthreshold]
 up.ranges <- granges(up)
@@ -76,7 +77,7 @@ up.ranges.df <- data.frame(seqnames=seqnames(up.ranges),
   ends=end(up.ranges),
   strands=strand(up.ranges))
 
-write.table(up.ranges.df, file="LiverATAC/results/dea_04/PWK-F0-Male-Basemodel/up.bed", quote=F, sep="\t", row.names=F, col.names=F)
+write.table(up.ranges.df, file="Steg2026/LiverATAC/results/dea_03/PWK-F0-Male-Basemodel/up.bed", quote=F, sep="\t", row.names=F, col.names=F)
 
 down <- SE[rowData(SE)$dea$padj < pthreshold & rowData(SE)$dea$logFC < -logthreshold]
 down.ranges <- granges(down)
@@ -86,7 +87,7 @@ down.ranges.df <- data.frame(seqnames=seqnames(down.ranges),
   ends=end(down.ranges),
   strands=strand(down.ranges))
 
-write.table(down.ranges.df, file="LiverATAC/results/dea_04/PWK-F0-Male-Basemodel/down.bed", quote=F, sep="\t", row.names=F, col.names=F)
+write.table(down.ranges.df, file="Steg2026/LiverATAC/results/dea_03/PWK-F0-Male-Basemodel/down.bed", quote=F, sep="\t", row.names=F, col.names=F)
 
 # Merge bam files
 ctr <- colData(SE)$Sample[colData(SE)$Group == "CTR"]
@@ -103,12 +104,12 @@ system(paste0("samtools index ", output, "lpdMerged.bam"))
 
 Plot heatmaps at DARs
 ```{bash engine.opts='-l', eval=F}
-scripts/tracks.sh LiverATAC/results/dea_04/PWK-F0-Male-Basemodel/ctrMerged.bam LiverATAC/results/dea_04/PWK-F0-Male-Basemodel/ logs/26_mergedtracks/ 5 8
-scripts/tracks.sh LiverATAC/results/dea_04/PWK-F0-Male-Basemodel/lpdMerged.bam LiverATAC/results/dea_04/PWK-F0-Male-Basemodel/ logs/26_mergedtracks/ 5 8
+Steg2026/LiverATAC/scripts/tracks.sh Steg2026/LiverATAC/results/dea_03/PWK-F0-Male-Basemodel/ctrMerged.bam Steg2026/LiverATAC/results/dea_03/PWK-F0-Male-Basemodel/ logs/26_mergedtracks/ 5 8
+Steg2026/LiverATAC/scripts/tracks.sh Steg2026/LiverATAC/results/dea_03/PWK-F0-Male-Basemodel/lpdMerged.bam Steg2026/LiverATAC/results/dea_03/PWK-F0-Male-Basemodel/ logs/26_mergedtracks/ 5 8
 
-computeMatrix reference-point -R LiverATAC/results/dea_04/PWK-F0-Male-Basemodel/up.bed LiverATAC/results/dea_04/PWK-F0-Male-Basemodel/down.bed --referencePoint "center" -S LiverATAC/results/dea_04/PWK-F0-Male-Basemodel/ctrMerged.bw LiverATAC/results/dea_04/PWK-F0-Male-Basemodel/lpdMerged.bw -b 2000 -a 2000 --skipZeros -p 8 -o LiverATAC/results/dea_04/PWK-F0-Male-Basemodel/DAR.mat.gz --outFileSortedRegions LiverATAC/results/dea_04/PWK-F0-Male-Basemodel/DAR.bed
+computeMatrix reference-point -R Steg2026/LiverATAC/results/dea_03/PWK-F0-Male-Basemodel/up.bed Steg2026/LiverATAC/results/dea_03/PWK-F0-Male-Basemodel/down.bed --referencePoint "center" -S Steg2026/LiverATAC/results/dea_03/PWK-F0-Male-Basemodel/ctrMerged.bw Steg2026/LiverATAC/results/dea_03/PWK-F0-Male-Basemodel/lpdMerged.bw -b 2000 -a 2000 --skipZeros -p 8 -o Steg2026/LiverATAC/results/dea_03/PWK-F0-Male-Basemodel/DAR.mat.gz --outFileSortedRegions Steg2026/LiverATAC/results/dea_03/PWK-F0-Male-Basemodel/DAR.bed
 
-plotHeatmap -m LiverATAC/results/dea_04/PWK-F0-Male-Basemodel/DAR.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 --heatmapWidth 2 --colorMap 'Greys' --whatToShow 'plot, heatmap and colorbar' --plotType se -out LiverATAC/results/dea_04/PWK-F0-Male-Basemodel/DAR.heatmap.pdf
+plotHeatmap -m Steg2026/LiverATAC/results/dea_03/PWK-F0-Male-Basemodel/DAR.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 --heatmapWidth 2 --colorMap 'Greys' --whatToShow 'plot, heatmap and colorbar' --plotType se -out Steg2026/LiverATAC/results/dea_03/PWK-F0-Male-Basemodel/DAR.heatmap.pdf
 ```
 
 
@@ -116,13 +117,13 @@ Supplements
 
 Motif analysis PWK F0 Males using Homer findMotifsGenome.pl
 ```{bash engine.opts='-l', eval=F}
-bed2pos.pl LiverATAC/results/dea_04/PWK-F0-Male-Basemodel/up.bed > LiverATAC/results/dea_04/PWK-F0-Male-Basemodel/up.pos
+bed2pos.pl Steg2026/LiverATAC/results/dea_03/PWK-F0-Male-Basemodel/up.bed > Steg2026/LiverATAC/results/dea_03/PWK-F0-Male-Basemodel/up.pos
 
-findMotifsGenome.pl LiverATAC/results/dea_04/PWK-F0-Male-Basemodel/up.pos mm10 LiverATAC/results/dea_04/PWK-F0-Male-Basemodel/up -preparsedDir LiverATAC/results/dea_04/PWK-F0-Male-Basemodel/preparsed/ -size 200 -mask -p 8
+findMotifsGenome.pl Steg2026/LiverATAC/results/dea_03/PWK-F0-Male-Basemodel/up.pos mm10 Steg2026/LiverATAC/results/dea_03/PWK-F0-Male-Basemodel/up -preparsedDir Steg2026/LiverATAC/results/dea_03/PWK-F0-Male-Basemodel/preparsed/ -size 200 -mask -p 8
 
-bed2pos.pl LiverATAC/results/dea_04/PWK-F0-Male-Basemodel/down.bed > LiverATAC/results/dea_04/PWK-F0-Male-Basemodel/down.pos
+bed2pos.pl Steg2026/LiverATAC/results/dea_03/PWK-F0-Male-Basemodel/down.bed > Steg2026/LiverATAC/results/dea_03/PWK-F0-Male-Basemodel/down.pos
 
-findMotifsGenome.pl LiverATAC/results/dea_04/PWK-F0-Male-Basemodel/down.pos mm10 LiverATAC/results/dea_04/PWK-F0-Male-Basemodel/down -preparsedDir LiverATAC/results/dea_04/PWK-F0-Male-Basemodel/preparsed/ -size 200 -mask -p 8
+findMotifsGenome.pl Steg2026/LiverATAC/results/dea_03/PWK-F0-Male-Basemodel/down.pos mm10 Steg2026/LiverATAC/results/dea_03/PWK-F0-Male-Basemodel/down -preparsedDir Steg2026/LiverATAC/results/dea_03/PWK-F0-Male-Basemodel/preparsed/ -size 200 -mask -p 8
 ```
 
 
@@ -180,7 +181,7 @@ ggsave(paste0(output, "DAR.genomic.distribution.pdf"), plot, width = 6, height =
 
 Plot histone PTMs from public datasets at DARs
 ```{bash engine.opts='-l', eval=F}
-computeMatrix reference-point -R LiverATAC/results/dea_04/PWK-F0-Male-Basemodel/up.bed LiverATAC/results/dea_04/PWK-F0-Male-Basemodel/down.bed --referencePoint "center" -S Public_data/Liver/08_tracks/Liver_H3K4me1.merged.bw Public_data/Liver/08_tracks/Liver_H3K4me3.merged.bw Public_data/Liver/08_tracks/Liver_H3K27ac.merged.bw -b 2000 -a 2000 --skipZeros -p 8 -o LiverATAC/results/dea_04/PWK-F0-Male-Basemodel/DAR.PTMs.mat.gz --outFileSortedRegions LiverATAC/results/dea_04/PWK-F0-Male-Basemodel/DAR.PTMs.bed
+computeMatrix reference-point -R Steg2026/LiverATAC/results/dea_03/PWK-F0-Male-Basemodel/up.bed Steg2026/LiverATAC/results/dea_03/PWK-F0-Male-Basemodel/down.bed --referencePoint "center" -S Public_data/Liver/08_tracks/Liver_H3K4me1.merged.bw Public_data/Liver/08_tracks/Liver_H3K4me3.merged.bw Public_data/Liver/08_tracks/Liver_H3K27ac.merged.bw -b 2000 -a 2000 --skipZeros -p 8 -o Steg2026/LiverATAC/results/dea_03/PWK-F0-Male-Basemodel/DAR.PTMs.mat.gz --outFileSortedRegions Steg2026/LiverATAC/results/dea_03/PWK-F0-Male-Basemodel/DAR.PTMs.bed
 
-plotHeatmap -m LiverATAC/results/dea_04/PWK-F0-Male-Basemodel/DAR.PTMs.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 --heatmapWidth 2 --colorMap 'GnBu_r' 'Greens_r' 'hot_r' --whatToShow 'plot, heatmap and colorbar' --plotType se --regionsLabel "H3K4me1" "H3K4me3" "H3K27ac" -out LiverATAC/results/dea_04/PWK-F0-Male-Basemodel/DAR.PTMs.heatmap.pdf
+plotHeatmap -m Steg2026/LiverATAC/results/dea_03/PWK-F0-Male-Basemodel/DAR.PTMs.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 --heatmapWidth 2 --colorMap 'GnBu_r' 'Greens_r' 'hot_r' --whatToShow 'plot, heatmap and colorbar' --plotType se --regionsLabel "H3K4me1" "H3K4me3" "H3K27ac" -out Steg2026/LiverATAC/results/dea_03/PWK-F0-Male-Basemodel/DAR.PTMs.heatmap.pdf
 ```

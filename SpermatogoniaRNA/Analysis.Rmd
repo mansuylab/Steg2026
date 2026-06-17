@@ -39,14 +39,14 @@ Run DEA function
 ```{r}
 dea.RNA.Spermatogonia(pheno = pheno, strain = "B6", generation = "F0", sex = "Male", exclude = NULL, 
                  VarExp = "Group",CtrGroup = "CTR", ExpGroup = "LPD", 
-                 outputdir = "results/03_dea/", 
+                 outputdir = "Steg2026/SpermatogoniaRNA/results/03_dea/", 
                  salmondir = "Steg2026/SpermatogoniaRNA/results/01_preprocess/09_salmon_post_dedup/",
                  suffix ="Basemodel")
 ```
 
 Plot Volcano plot
 ```{r}
-SE <- readRDS("Steg2026/SpermatogoniaRNA/results/0_dea/B6-F0-Male-Basemodel/SE.rds")
+SE <- readRDS("Steg2026/SpermatogoniaRNA/results/03_dea/B6-F0-Male-Basemodel/SE.rds")
 
 res <- as.data.frame(rowData(SE))
 
@@ -64,7 +64,7 @@ res_go_merged <- metadata(SE)$go_merged$result
 source("Steg2026/scripts/GoTermBarplot.R")
 
 GoTermBarplot(GO.res = res_go_merged, color.low = "#E1E1E1", color.high = "#01395b",
-              output = "Steg2026/SpermatogoniaRNA/03_dea/B6-F0-Male-Basemodel/",print = T)
+              output = "Steg2026/SpermatogoniaRNA/results/03_dea/B6-F0-Male-Basemodel/",print = T)
 ```
 
 Compare to sperm transcriptome using RRHO
@@ -75,7 +75,7 @@ source("Steg2026/scripts/rrho.R")
 # Run function
 rrho(resultsfolder = "Steg2026/SpermatogoniaRNA/results/03_dea/",
      analysis1 = "B6-F0-Male-Basemodel/", 
-     analysis2 = "../../../SpermRNA/results/03_dea/B6-F0-Male-Basemodel/", 
+     analysis2 = "Steg2026/SpermRNA/results/03_dea/B6-F0-Male-Basemodel/", 
      outputdir = "Steg2026/SpermatogoniaRNA/results/03_dea/B6-F0-Male-Basemodel/RRHO_Sperm/", 
      multipletesstoption = "BH", boundaryoption = 0.1, 
      label1 = "Spermatogonia RNA-seq", label2 = "Sperm RNA-seq",
@@ -90,7 +90,7 @@ genes.dd <- RRHO$genelist_dd$gene_list_overlap_dd
 
 genes.samedir <- c(genes.uu, genes.dd)
 
-background <- rownames(se.sc)
+background <- rownames(SE)
 
 # Write csv
 write.csv(genes.uu, file = paste0("Steg2026/SpermatogoniaRNA/results/03_dea/B6-F0-Male-Basemodel/RRHO_Sperm_BH/", "genes.uu.csv"))
@@ -137,20 +137,20 @@ output <- "Steg2026/SpermatogoniaRNA/results/03_dea/B6-F0-Male-Basemodel/RRHO_Sp
 genes <- genes(TxDb.Mmusculus.UCSC.mm10.knownGene)
 
 # Add Entrez IDs to res
-res.sc$Entrez <- mapIds(org.Mm.eg.db,keys = rownames(res.sc),keytype = "SYMBOL", column = "ENTREZID",multiVals = "first")
+res$Entrez <- mapIds(org.Mm.eg.db,keys = rownames(res),keytype = "SYMBOL", column = "ENTREZID",multiVals = "first")
 
 # Find and export gene TSS for UU genes
-genes.uu <- genes[names(genes) %in% unname(res.sc[RRHO$genelist_uu$gene_list_overlap_uu,]$Entrez) ]
+genes.uu <- genes[names(genes) %in% unname(res[RRHO$genelist_uu$gene_list_overlap_uu,]$Entrez) ]
 genes.tss.uu <- resize(genes.uu, width = 1, fix = "start") 
 export.bed(genes.tss.uu, con = paste0(output,"genes.tss.uu.bed"))
 
 # Find and export gene TSS for UU genes
-genes.dd <- genes[names(genes) %in% unname(res.sc[RRHO$genelist_dd$gene_list_overlap_dd,]$Entrez) ]
+genes.dd <- genes[names(genes) %in% unname(res[RRHO$genelist_dd$gene_list_overlap_dd,]$Entrez) ]
 genes.tss.dd <- resize(genes.dd, width = 1, fix = "start") 
 export.bed(genes.tss.dd, con = paste0(output,"genes.tss.dd.bed"))
 
 # Find and export gene TSS for all same directional genes
-genes.samedir <- genes[names(genes) %in% unname(res.sc[c(RRHO$genelist_uu$gene_list_overlap_uu, RRHO$genelist_dd$gene_list_overlap_dd),]$Entrez) ]
+genes.samedir <- genes[names(genes) %in% unname(res[c(RRHO$genelist_uu$gene_list_overlap_uu, RRHO$genelist_dd$gene_list_overlap_dd),]$Entrez) ]
 genes.tss.samedir <- resize(genes.samedir, width = 1, fix = "start") 
 export.bed(genes.tss.samedir, con = paste0(output,"genes.tss.samedir.bed"))
 
@@ -158,7 +158,7 @@ export.bed(genes.tss.samedir, con = paste0(output,"genes.tss.samedir.bed"))
 set.seed(123)
 nbackground <- length(genes.tss.samedir)
 
-genes.background <- genes[names(genes) %in% unname(res.sc$Entrez)]
+genes.background <- genes[names(genes) %in% unname(res$Entrez)]
 genes.tss.background <- resize(genes.background, width = 1, fix = "start")
 genes.tss.background.sample <- sample(genes.tss.background, size = nbackground)
 export.bed(genes.tss.background.sample, con = paste0(output,"genes.tss.background.bed"))

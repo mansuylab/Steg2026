@@ -3,14 +3,14 @@
 # Arguments:
 # dataframe: Input dataframe that includes at least one column with logFC values and one with Pvalues (adjusted or not).
 # PValues: Name of column in dataframe with (adjusted) PValues. Default "padj".
-# output: Folder where to save the pdf file. Default "/mnt/groupMansuy/leo/play/".
+# output: Folder where to save the pdf file. Default "/Steg2026/".
 # filename: Name to give to pdf file. Default "VolcanoGGPlot.pdf".
 # Plotwidth: Width of saved pdf in cm. Default 20 cm.
 # Plotheight: Height of saved pdf in cm. Default 10 cm.
 # Print: Whether or not to print. Default FALSE.
 
 PValueHistogram <- function(dataframe, PValues = "PValue", 
-                            output = "/mnt/groupMansuy/leo/play/", filename = "PValueHist.pdf", plotwidth = 20, plotheight = 10,
+                            output = "/Steg2026/", filename = "PValueHist.pdf", plotwidth = 20, plotheight = 10,
                             print = FALSE){
   
   library(ggplot2)

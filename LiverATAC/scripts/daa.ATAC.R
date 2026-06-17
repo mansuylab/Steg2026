@@ -1,4 +1,4 @@
-ATAC.dea <- function(pheno, bamdir, peakdir,
+daa.ATAC <- function(pheno, bamdir, peakdir,
                      strain, generation, sex, exclude, 
                      VarExp = "Group", CtrGroup = "CTR", ExpGroup = "LPD", 
                      CovarBio = NULL, CovarTec = NULL, minOverlap = 0.3, 
