@@ -1,0 +1,74 @@
+---
+title: "Sperm DEA"
+author: "Leonard C. Steg"
+date: '2024-09-19'
+output: html_document
+---
+
+```{r}
+suppressPackageStartupMessages({
+  library(edgeR)
+  library(limma)
+  library(EnhancedVolcano)
+  library(pheatmap)
+  library(RColorBrewer)
+  library(ggplot2)
+  library(ggfortify)
+  library(cowplot)
+  library(SummarizedExperiment)
+  library(dichromat)
+  library(cowplot)
+  library(SEtools)
+  library(gprofiler2)
+  library(reshape2)
+})
+```
+
+
+
+Read in pheno file with metadata
+```{r}
+pheno <- read.csv("Steg2026/SpermRNA/pheno.csv", row.names = 1)
+
+pheno$Strain <- "B6"
+pheno$Generation <- "F0"
+pheno$Sex <- "Male"
+```
+
+Load DEA function
+```{r}
+source("Steg2026/SpermRNA/scripts/dea.RNA.Sperm.R")
+```
+
+Run DEA function
+```{r}
+RNA.dea.tximport(pheno = pheno, strain = "B6", generation = "F0", sex = "Male", 
+                 VarExp = "Group", CtrGroup = "CTR", ExpGroup = "LPD", outputdir = "Steg2026/SpermRNA/results/03_dea/", 
+                 salmondir = "Steg2026/SpermRNA/results/01_preprocess/12_salmon_post_dedup/",
+                 suffix ="Basemodel")
+```
+
+Plot Volcano plot
+```{r}
+SE <- readRDS("/Steg2026/SpermRNA/results/03_dea/B6-F0-Male-Basemodel/SE.rds")
+
+source("Steg2026/scripts/VolcanoPlotGGPlot.R")
+
+VolcanoPlotGGPlot(dataframe = as.data.frame(rowData(SE)), logFC = "dea.logFC", PValues = "dea.padj",
+                  color.highlight ="#1e85d9" ,output = "Steg2026/SpermRNA/results/03_dea/B6-F0-Male-Basemodel/")
+
+
+
+```
+
+Run DEA with samples that were used for IVF to generate embryos
+```{r}
+exclude <- c("B6-F0-03", "B6-F0-06", "B6-F0-09", "B6-F0-20", "B6-F0-25", "B6-F0-38", "B6-F0-61", "B6-F0-64")
+
+RNA.dea.tximport(pheno = pheno, strain = "B6", generation = "F0", sex = "Male", exclude = exclude, 
+                 VarExp = "Group", CtrGroup = "CTR", ExpGroup = "LPD", outputdir = "Steg2026/SpermRNA/results/03_dea/", 
+                 salmondir = "Steg2026/SpermRNA/results/01_preprocess/12_salmon_post_dedup/",
+                 suffix ="Basemodel_EmbryoSamples")
+```
+
+
