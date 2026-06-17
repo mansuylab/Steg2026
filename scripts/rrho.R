@@ -1,4 +1,4 @@
-rrho <- function(resultsfolder, analysis1, analysis2, outputdir = "/Steg2026/", 
+rrho <- function(analysis1, analysis2, outputdir = "Steg2026/", 
                  multipletesstoption = "BH",stepsizeoption = 100, boundaryoption = 0.05,
                  label1 = NULL, label2 = NULL, pathwayanalysis = TRUE){
   
@@ -28,8 +28,8 @@ rrho <- function(resultsfolder, analysis1, analysis2, outputdir = "/Steg2026/",
 
 
   # Load in data
-  se1 <- readRDS(paste0(resultsfolder, analysis1, "/SE.rds"))
-  se2 <- readRDS(paste0(resultsfolder, analysis2, "/SE.rds"))
+  se1 <- readRDS(paste0(analysis1, "/SE.rds"))
+  se2 <- readRDS(paste0(analysis2, "/SE.rds"))
   
   DEA_table1 <- rowData(se1)$dea
   DEA_table2 <- rowData(se2)$dea

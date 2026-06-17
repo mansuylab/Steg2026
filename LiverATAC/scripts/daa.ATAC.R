@@ -1,5 +1,5 @@
 daa.ATAC <- function(pheno, bamdir, peakdir,
-                     strain, generation, sex, exclude, 
+                     strain, generation, sex, exclude = NULL, 
                      VarExp = "Group", CtrGroup = "CTR", ExpGroup = "LPD", 
                      CovarBio = NULL, CovarTec = NULL, minOverlap = 0.3, 
                      outputdir, suffix = NULL){

@@ -12,7 +12,6 @@ suppressPackageStartupMessages({
   library(rtracklayer)
   library(Rsamtools)
   library(cowplot)
-  library(readxl)
   library(ggplot2)
   library(jsonlite)
   library(reshape2)

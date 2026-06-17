@@ -73,8 +73,7 @@ Compare to sperm transcriptome using RRHO
 source("Steg2026/scripts/rrho.R")
 
 # Run function
-rrho(resultsfolder = "Steg2026/SpermatogoniaRNA/results/03_dea/",
-     analysis1 = "B6-F0-Male-Basemodel/", 
+rrho(analysis1 = "Steg2026/SpermatogoniaRNA/results/03_dea/B6-F0-Male-Basemodel/", 
      analysis2 = "Steg2026/SpermRNA/results/03_dea/B6-F0-Male-Basemodel/", 
      outputdir = "Steg2026/SpermatogoniaRNA/results/03_dea/B6-F0-Male-Basemodel/RRHO_Sperm/", 
      multipletesstoption = "BH", boundaryoption = 0.1, 

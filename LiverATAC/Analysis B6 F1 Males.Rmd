@@ -197,7 +197,7 @@ plotHeatmap -m Steg2026/LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_dow
 
 
 
-Motif analysis B6 F0 Males using Homer findMotifsGenome.pl
+Motif analysis B6 F1 Males using Homer findMotifsGenome.pl
 From the results, the enrichment scores and pvalues are manually entered into an excel sheet which is then used for plotting
 ```{bash engine.opts='-l', eval=F}
 bed2pos.pl Steg2026/LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/up.bed > Steg2026/LiverATAC/results/dea_merged_07/B6-F1-Male-Basemodel_downsampled/up.pos
@@ -212,11 +212,11 @@ findMotifsGenome.pl Steg2026/LiverATAC/results/dea_merged_07/B6-F1-Male-Basemode
 
 Load in excel sheet with enrichment scores and pvalues and plot heatmap
 ```{r}
-enrichment <- as.data.frame(read_excel("Steg2026/LiverATAC/results/TFs.motifs.xlsx", sheet = 2))
+enrichment <- as.data.frame(read_excel("Steg2026/LiverATAC/TFs.motifs.xlsx", sheet = 2))
 rownames(enrichment) <- enrichment[,1]
 enrichment <- enrichment[,-1]
 
-target <- as.data.frame(read_excel("Steg2026/LiverATAC/results/TFs.motifs.xlsx", sheet = 3))
+target <- as.data.frame(read_excel("Steg2026/LiverATAC/TFs.motifs.xlsx", sheet = 3))
 rownames(target) <- target[,1]
 target <- target[,-1]
 

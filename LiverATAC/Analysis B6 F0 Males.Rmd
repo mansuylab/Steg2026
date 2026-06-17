@@ -130,11 +130,11 @@ findMotifsGenome.pl Steg2026/LiverATAC/results/dea_03/B6-F0-Male-Basemodel/down.
 
 Load in excel sheet with enrichment scores and pvalues and plot heatmap
 ```{r}
-enrichment <- as.data.frame(read_excel("Steg2026/LiverATAC/results/TFs.motifs.xlsx", sheet = 4))
+enrichment <- as.data.frame(read_excel("Steg2026/LiverATAC/TFs.motifs.xlsx", sheet = 4))
 rownames(enrichment) <- enrichment[,1]
 enrichment <- enrichment[,-1]
 
-target <- as.data.frame(read_excel("Steg2026/LiverATAC/results/TFs.motifs.xlsx", sheet = 5))
+target <- as.data.frame(read_excel("Steg2026/LiverATAC/TFs.motifs.xlsx", sheet = 5))
 rownames(target) <- target[,1]
 target <- target[,-1]
 
