@@ -1,0 +1,386 @@
+---
+title: "Embryo RNA paternal Analysis"
+author: "Leonard C. Steg"
+date: '2025-07-15'
+output: html_document
+---
+
+```{r}
+suppressPackageStartupMessages({
+  library(edgeR)
+  library(RColorBrewer)
+  library(ggplot2)
+  library(SummarizedExperiment)
+  library(cowplot)
+  library(SEtools)
+  library(gprofiler2)
+  library(rtracklayer)
+  library(ggrepel)
+  library(TxDb.Mmusculus.UCSC.mm10.knownGene)
+  library(org.Mm.eg.db)
+})
+```
+
+Read in pheno file with metadata
+```{r}
+pheno <- read.csv("Steg2026/EmbryoRNA/pheno.csv", row.names = 1)
+```
+
+Load in results from DEA
+```{r}
+se.twocell.pat <- readRDS("Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_pat_mother/SE.rds")
+
+output <- "Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_pat_mother/"
+```
+
+Plot volcano plot
+```{r}
+source("Steg2026/scripts/VolcanoPlotGGPlot.R")
+
+VolcanoPlotGGPlot(dataframe = as.data.frame(rowData(se.twocell.pat)), logFC = "dea.logFC", PValues = "dea.padj",
+                  xlimits = 5, ylimits = 8.5,
+                  color.highlight ="#1E85D9" ,output = output)
+```
+
+Plot GO barplot
+```{r}
+source("Steg2026/scripts/GoTermBarplot.R")
+
+GoTermBarplot(GO.res = metadata(se.twocell.pat)$go_merged, color.low = "#E1E1E1", color.high = "#09263E",xlimits = 28,
+              output = dir,print = T)
+```
+
+TF target enrichment analysis via Enrichr (https://maayanlab.cloud/Enrichr/). Use tables generated with DEA function to select gene names of differentially expressed genes and the background (total genome).
+Download results from ChEA 2022 database enrichment analysis. Load in resulting df for plotting.
+```{r}
+df <- read.delim(paste0(output, "ChEA_pat_table.txt"), header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+
+df$TF <- sub(" .*", "", df$Term)
+
+# Compute -log10(p) for y-axis
+df$log_padj <- -log10(df$Adjusted.P.value)  # replace with correct column if needed
+
+top_tfs <- df %>%
+  arrange(desc(log_padj)) %>%
+  slice_head(n = nrow(df[df$Adjusted.P.value < 0.05,]))  # or use more if desired
+
+thres.fdr <- -log10(0.05)
+
+tf_plot <- ggplot(df, aes(x = Odds.Ratio, y = log_padj)) +
+  geom_hline(yintercept = thres.fdr, linewidth = 0.3, color = "grey40") +
+  geom_point(color = "grey70", size = 1.5) +  
+  geom_point(data = top_tfs, aes(x = Odds.Ratio, y = log_padj), color = "#1e85d9", size = 2) +  # highlight
+  geom_text_repel(data = top_tfs,
+                  aes(label = TF),
+                  size = 2, 
+                  box.padding = 0.3,
+                  point.padding = 0.2,
+                  max.overlaps = 15) +
+  labs(x = "Odds ratio", y = expression(-log[10](adj.p-value))) +
+  theme_cowplot(font_size = 8, line_size = 0.5)
+
+ggsave("TF_enrichr_plot.pdf", plot = tf_plot, path=output, width = 4, height = 4.5, units = "cm")
+```
+
+Load results from analysis in spermRNA and embryoRNA maternal transcriptome
+```{r}
+se.sperm <- readRDS("Steg2026/SpermRNA/results/03_dea/B6-F0-Male-Basemodel_EmbryoSamples/SE.rds")
+
+se.twocell.mat <- readRDS("Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/SE.rds")
+```
+
+Take differentially expressed genes in paternal transcriptome and subset for genes detected in all three analyses
+```{r}
+res.sperm <- as.data.frame(rowData(se.sperm))
+res.twocell.pat <- as.data.frame(rowData(se.twocell.pat))
+res.twocell.mat <- as.data.frame(rowData(se.twocell.mat))
+
+top.twocell.pat <- rownames(res.twocell.pat[res.twocell.pat$dea.padj < 0.05,])
+
+top.twocell.pat <- top.twocell.pat[top.twocell.pat %in% rownames(se.sperm) & top.twocell.pat %in% rownames(se.twocell.mat)]
+```
+
+Identify genes that are consistently up or down in sperm and 2cell paternal
+```{r}
+logfc_matrix_sperm2pat <- data.frame(
+  Sperm = res.sperm[top.twocell.pat, "dea.logFC"],
+  TwoCell = res.twocell.pat[top.twocell.pat, "dea.logFC"],
+  row.names = top.twocell.pat
+)
+# Subset for genes with all positive logFCs
+logfc_up <- logfc_matrix_sperm2pat[apply(logfc_matrix_sperm2pat, 1, function(x) all(x > 0.5)), ]
+
+# Subset for genes with all negative logFCs
+logfc_down <- logfc_matrix_sperm2pat[apply(logfc_matrix_sperm2pat, 1, function(x) all(x < -0.5)), ]
+
+Sperm2EmbryoGenes <- rbind(logfc_up, logfc_down)
+
+write.csv(Sperm2EmbryoGenes, file = "Steg2026/EmbryoRNA/results/04_sperm_to_embryo/Sperm2EmbryoGenes.csv")
+```
+
+Plot heatmap with expression of Sperm2EmbryoGenes in sperm, embryo paternal and maternal transcriptome.
+```{r}
+range_val <- max(abs(logfc_matrix_sperm2pat)) 
+
+logfc_mat <- data.frame(
+  Sperm = res.sperm[top.twocell.pat, "dea.logFC"],
+  TwoCell.pat = res.twocell.pat[top.twocell.pat, "dea.logFC"],
+  TwoCell.mat = res.twocell.mat[top.twocell.pat, "dea.logFC"],
+  row.names = top.twocell.pat
+)
+
+logfc_mat <- logfc_mat[rownames(Sperm2EmbryoGenes),]
+
+# Plot
+sperm2embryo.heatmap <- pheatmap(logfc_mat, 
+         cluster_rows = FALSE, 
+         cluster_cols = FALSE,
+         show_rownames = F,
+         fontsize = 7,
+         scale = "column",           # or "row" to z-score per gene
+         color = colorRampPalette(c("#761111", "white", "#114476"))(100),
+         breaks = seq(-range_val, range_val, length.out = 101),
+         main = "logFC heatmap of 2cell DEA top genes")
+
+
+pdf(file = "Steg2026/EmbryoRNA/results/04_sperm_to_embryo/Sperm2EmbryoHeatmap.pdf", width = 2.5,height = 2.5)
+sperm2embryo.heatmap
+dev.off()
+```
+
+
+TF target enrichment analysis via Enrichr (https://maayanlab.cloud/Enrichr/). Use Sperm2Embryo genes as input and total transcriptome genes as background.
+Download results from ChEA 2022 database enrichment analysis. Load in resulting df for plotting.
+```{r}
+df <- read.delim("Steg2026/EmbryoRNA/results/04_sperm_to_embryo/ChEA_2022_merged.txt", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+
+df$TF <- sub(" .*", "", df$Term)
+
+# Compute -log10(p) for y-axis
+df$log_padj <- -log10(df$Adjusted.P.value)  # replace with correct column if needed
+
+top_tfs <- df %>%
+  arrange(desc(log_padj)) %>%
+  slice_head(n = nrow(df[df$Adjusted.P.value < 0.05,]))  # or use more if desired
+
+tf_plot <- ggplot(df, aes(x = Odds.Ratio, y = log_padj)) +
+  geom_hline(yintercept = thres.fdr, linewidth = 0.3, color = "grey40") +
+  geom_point(color = "grey70", size = 1.5) +  
+  geom_point(data = top_tfs, aes(x = Odds.Ratio, y = log_padj), color = "#5A7B9C", size = 2) +  # highlight
+  geom_text_repel(data = top_tfs,
+                  aes(label = TF),
+                  size = 2, 
+                  box.padding = 0.3,
+                  point.padding = 0.2,
+                  max.overlaps = 15) +
+  labs(x = "Odds ratio", y = expression(-log[10](adj.p-value))) +
+  theme_cowplot(font_size = 8, line_size = 0.5)
+
+ggsave("Sperm2Embryo.TF_enrichr_plot.pdf", plot = tf_plot, path="Steg2026/EmbryoRNA/results/04_sperm_to_embryo/", width = 4, height = 4.5, units = "cm")
+
+```
+
+Analysis to find overlapping most expressed transcripts of Sperm2Embryo genes in both sperm and paternal transcriptome of twocell embryo
+Step 1: Create count matrix of transcripts in both datasets
+
+```{bash engine.opts='-l', eval=F}
+python Steg2026/scripts/CreateCounts1.py Steg2026/EmbryoRNA/results/01_preprocess/15_salmon_post_snpsplit/genome1/*_quant/quant.sf Steg2026/EmbryoRNA/results/01_preprocess/15_salmon_post_snpsplit/genome1/count_matrix.tsv
+
+python Steg2026/scripts/CreateCounts1.py Steg2026/SpermRNA/results/01_preprocess/12_salmon_post_dedup/*_quant/quant.sf Steg2026/SpermRNA/results/01_preprocess/12_salmon_post_dedup/count_matrix.tsv
+```
+
+Load tables and annotation, find most expressed transcripts per gene in both datasets, calculate proportion and plot.
+```{r}
+# Load in Twocell paternal transcript count matrix
+counts.trx.pat <- read.table(
+  "Steg2026/EmbryoRNA/results/01_preprocess/15_salmon_post_snpsplit/genome1/count_matrix.tsv",
+  header = TRUE,
+  sep = "\t",
+  row.names = 1,
+  check.names = FALSE
+)
+
+# Load in sperm transcript count matrix
+counts.trx.sperm <- read.table(
+  "Steg2026/SpermRNA/results/01_preprocess/12_salmon_post_dedup/count_matrix.tsv",
+  header = TRUE,
+  sep = "\t",
+  row.names = 1,
+  check.names = FALSE
+)
+
+# Subset for samples of fathers used for IVF
+samples.NOT.embryo.fathers <- c("B6-F0-03", "B6-F0-06", "B6-F0-09", "B6-F0-20", "B6-F0-25", "B6-F0-38", "B6-F0-61", "B6-F0-64")
+counts.trx.sperm <- counts.trx.sperm[,!(colnames(counts.trx.sperm) %in% samples.NOT.embryo.fathers)]
+
+# Load annotation files
+txdb <- TxDb.Mmusculus.UCSC.mm10.knownGene
+# Extract all the transcript names (TXNAME) as keys
+k <- keys(txdb, keytype = "TXNAME")
+# Create a mapping (tx2gene) from TXNAME (transcript IDs) to GENEID (UCSC Entrez IDs)
+tx2gene <- select(txdb, keys = k, columns = "GENEID", keytype = "TXNAME")
+# Use org.Mm.eg.db to map UCSC Entrez IDs to Ensembl Gene IDs
+ensembl_map <- mapIds(org.Mm.eg.db, 
+                      keys = tx2gene$GENEID, 
+                      column = "SYMBOL", 
+                      keytype = "ENTREZID", 
+                      multiVals = "first") 
+
+tx2gene$NAME <- as.character(ensembl_map[tx2gene$GENEID])
+tx2gene <- tx2gene[!is.na(tx2gene$GENEID),]
+
+# Create dataframe with most expressed transcripts in each dataset per Sperm2Embryo gene
+colnames.df <- c("SpermMostUsed", "%Sperm", "EmbryoMostUsed", "%Embryo", "Overlap", "InTop3", "%inTop3", "InTop3AndHigh")
+
+Sperm2Embryo.trxs <- as.data.frame(matrix(NA, nrow = nrow(Sperm2EmbryoGenes), 
+                                          ncol = length(colnames.df), 
+                                          dimnames = list(rownames(Sperm2EmbryoGenes), colnames.df)))
+
+for (i in 1:nrow(Sperm2EmbryoGenes)) {
+  
+  gene <- rownames(Sperm2EmbryoGenes)[i]
+  
+  trxs <- tx2gene[tx2gene$NAME == gene,]$TXNAME
+  trxs <- trxs[!is.na(trxs)]
+  
+  if (length(trxs > 1)) {
+    sperm.sub <- counts.trx.sperm[trxs,]
+    sperm.sub.sums <- rowSums(sperm.sub)
+    sperm.sub.sums <- sperm.sub.sums[!is.na(sperm.sub.sums)]
+    sperm.most.trx <- names(sperm.sub.sums[sperm.sub.sums == max(sperm.sub.sums)])
+    sperm.top3.trx <- names(sperm.sub.sums[order(sperm.sub.sums, decreasing = T)][1:3])
+    
+    embryo.sub <- counts.trx.pat[trxs,]
+    embryo.sub.sums <- rowSums(embryo.sub)
+    embryo.sub.sums <- embryo.sub.sums[!is.na(embryo.sub.sums)]
+    embryo.most.trx <- names(embryo.sub.sums[embryo.sub.sums == max(embryo.sub.sums)])
+    
+    Sperm2Embryo.trxs[i,]$SpermMostUsed <- sperm.most.trx
+    Sperm2Embryo.trxs[i,]$`%Sperm` <- max(sperm.sub.sums)/sum(sperm.sub.sums)
+    
+    Sperm2Embryo.trxs[i,]$EmbryoMostUsed <- embryo.most.trx
+    Sperm2Embryo.trxs[i,]$`%Embryo` <- max(embryo.sub.sums)/sum(embryo.sub.sums)
+    
+    Sperm2Embryo.trxs[i,]$Overlap <- embryo.most.trx == sperm.most.trx
+    Sperm2Embryo.trxs[i,]$InTop3 <- embryo.most.trx %in% sperm.top3.trx
+    Sperm2Embryo.trxs[i,]$`%inTop3` <- sperm.sub.sums[embryo.most.trx]/sum(sperm.sub.sums)
+    
+    Sperm2Embryo.trxs[i,]$InTop3AndHigh <- Sperm2Embryo.trxs[i,]$InTop3 == T & Sperm2Embryo.trxs[i,]$`%inTop3` > 0.4
+    
+  }
+}
+
+Sperm2Embryo.trxs <- Sperm2Embryo.trxs[complete.cases(Sperm2Embryo.trxs),]
+
+# Proportion of genes that have the same transcript
+prop.sperm2embryo.trxs.overlap <- sum(Sperm2Embryo.trxs$Overlap)/nrow(Sperm2Embryo.trxs)
+# 0.5875486
+
+# Plot barplot
+df <- tibble(
+  category = c("Shared most expressed transcript", "Different transcript"),
+  proportion = c(
+    prop.sperm2embryo.trxs.overlap,
+    1 - prop.sperm2embryo.trxs.overlap
+  )
+)
+
+barplot.trxs <- ggplot(df, aes(x = "", y = proportion, fill = category)) +
+  geom_bar(stat = "identity", width = 0.6) +
+  scale_fill_manual(
+    values = c(
+      "Shared most expressed transcript" = "#5A7B9C",
+      "Different transcript" = "#B3B3B3"
+    )
+  ) +
+  scale_y_continuous(
+    labels = scales::percent_format(accuracy = 1),
+    limits = c(0, 1)
+  ) +
+  labs(
+    x = NULL,
+    y = "Percentage of genes",
+    fill = NULL
+  ) +
+  theme_cowplot(font_size = 8)
+
+
+ggsave(filename = "barplot.overlap.trxs.pdf", plot = barplot.trxs,path = "Steg2026/EmbryoRNA/results/04_sperm_to_embryo/", width = 7, height = 4, units = "cm")
+```
+
+
+Create .bed files at TSS of Sperm2Embryo Genes
+```{r}
+# Find the Entrez ID for each of the sperm to embryo genes
+same_dir_genes$Entrez <- mapIds(org.Mm.eg.db,
+                                           keys = rownames(same_dir_genes),
+                                           keytype = "SYMBOL",
+                                           column = "ENTREZID",
+                                           multiVals = "first")
+
+# Load in txdb for mm10
+txdb <- TxDb.Mmusculus.UCSC.mm10.knownGene
+tx_by_gene <- transcriptsBy(txdb, by = "gene")
+
+genes <- genes(TxDb.Mmusculus.UCSC.mm10.knownGene)
+
+# Prepare output and seed
+output <- "Steg2026/EmbryoRNA/results/04_sperm_to_embryo/"
+
+set.seed(123)
+
+# Bed for Sperm to Embryo genes
+genes.merged <- genes[names(genes) %in% unname(Sperm2EmbryoGenes$Entrez) ]
+genes.tss.merged <- resize(genes.merged, width = 1, fix = "start") 
+export.bed(genes.tss.merged, con = paste0(output,"genes.tss.merged.bed"))
+
+# Bed for random background take genes expressed in early 2 cell embryo
+SE.embryo<- readRDS("Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_dedup_mother/SE.rds")
+res.embryo <- as.data.frame(rowData(SE.embryo))
+
+res.embryo$Entrez <- mapIds(org.Mm.eg.db,keys = rownames(res.embryo),keytype = "SYMBOL", column = "ENTREZID",multiVals = "first")
+
+genes.background <- tx_by_gene[names(genes) %in% unname(res.embryo$Entrez)]
+genes.tss.background <- resize(genes.background, width = 1, fix = "start") 
+export.bed(sample(unlist(genes.tss.background), size = nrow(same_dir_genes)), con = paste0(output,"genes.tss.background.bed"))
+```
+
+Heatmap for H3K4me3 over gene start sides but with all genes, leaving out up and down, including maternal tracks
+```{bash engine.opts='-l', eval=F}
+computeMatrix reference-point -R Steg2026/EmbryoRNA/results/04_sperm_to_embryo/genes.tss.merged.bed Steg2026/EmbryoRNA/results/04_sperm_to_embryo/genes.tss.background.bed --referencePoint "center" -S Steg2026/Public_data/results/H3K4me3/Sperm_H3K4me3_rep1.bw Steg2026/Public_data/results/H3K4me3/PN5-zygote_H3K4me3_genome2.merged.bw Steg2026/Public_data/results/H3K4me3/2-cell-early_H3K4me3_genome2.merged.bw Steg2026/Public_data/results/H3K4me3/2-cell-late_H3K4me3_genome2.merged.bw Steg2026/Public_data/results/H3K4me3/Oocyte_H3K4me3_merged.bw Steg2026/Public_data/results/H3K4me3/PN5-zygote_H3K4me3_genome1.merged.bw Steg2026/Public_data/results/H3K4me3/2-cell-early_H3K4me3_genome1.merged.bw Steg2026/Public_data/results/H3K4me3/2-cell-late_H3K4me3_genome1.merged.bw -b 2000 -a 2000 --skipZeros -p 4 -o Steg2026/EmbryoRNA/results/04_sperm_to_embryo/H3K4me3.genes.tss.onlymerged.withMat.mat.gz --outFileSortedRegions Steg2026/EmbryoRNA/results/04_sperm_to_embryo/H3K4me3.genes.tss.onlymerged.withMat.bed
+
+plotHeatmap -m Steg2026/EmbryoRNA/results/04_sperm_to_embryo/H3K4me3.genes.tss.onlymerged.withMat.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 --heatmapWidth 2 --colorMap 'Blues' 'Blues' 'Blues' 'Blues' 'Purples' 'Purples' 'Purples' 'Purples' --whatToShow 'plot, heatmap and colorbar' --plotType se --samplesLabel "Sperm" "PN5 zygote pat" "TwoCell early pat" "TwoCell late pat" "Oocyte" "PN5 zygote mat" "TwoCell early mat" "TwoCell late mat" --regionsLabel "Sperm2Embryo genes" "Random background" -out Steg2026/EmbryoRNA/results/04_sperm_to_embryo/H3K4me3.genes.tss.heatmap.onlymerged.withMat.pdf
+```
+
+Heatmap for ATAC signal in sperm
+```{bash engine.opts='-l', eval=F}
+computeMatrix reference-point -R Steg2026/EmbryoRNA/results/04_sperm_to_embryo/genes.tss.merged.bed Steg2026/EmbryoRNA/results/04_sperm_to_embryo/genes.tss.background.bed --referencePoint "center" -S teg2026/Other_data/SpermATAC/tracks_merged.bw -b 2000 -a 2000 --skipZeros -p 4 -o Steg2026/EmbryoRNA/results/04_sperm_to_embryo/ATAC.sperm.mat.gz --outFileSortedRegions Steg2026/EmbryoRNA/results/04_sperm_to_embryo/ATAC.sperm.bed
+
+plotHeatmap -m Steg2026/EmbryoRNA/results/04_sperm_to_embryo/ATAC.sperm.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 --heatmapWidth 2 --colorMap 'Blues' --whatToShow 'plot, heatmap and colorbar' --plotType se --samplesLabel "Sperm ATAC" --regionsLabel "Sperm2Embryo genes" "Random background" -out Steg2026/EmbryoRNA/results/04_sperm_to_embryo/ATAC.sperm.pdf
+```
+
+Heatmap for DNAme signal in sperm
+```{bash engine.opts='-l', eval=F}
+computeMatrix reference-point -R Steg2026/EmbryoRNA/results/04_sperm_to_embryo/genes.tss.merged.bed Steg2026/EmbryoRNA/results/04_sperm_to_embryo/genes.tss.background.bed --referencePoint "center" -S Steg2026/Other_data/Sperm_EMseq/tracks_merged.bw -b 2000 -a 2000 --skipZeros -p 8 -o Steg2026/EmbryoRNA/results/04_sperm_to_embryo/Sperm.DNAme.mat.gz --outFileSortedRegions Steg2026/EmbryoRNA/results/04_sperm_to_embryo/Sperm.DNAme.bed
+
+plotHeatmap -m Steg2026/EmbryoRNA/results/04_sperm_to_embryo/Sperm.DNAme.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 10 --colorMap 'Greys' --whatToShow 'plot, heatmap and colorbar' --samplesLabel "Sperm DNAme" -out Steg2026/EmbryoRNA/results/04_sperm_to_embryo/Sperm.DNAme.pdf
+```
+
+Heatmap with CG content around Sperm2Embryo genes
+```{bash engine.opts='-l', eval=F}
+# Calcuate CG content in 10 bp windows across the genome
+bedtools makewindows -g mm10.chrom.sizes -w 10 \
+| bedtools nuc -fi Steg2026/references/genomes/mm10_raw/mm10.fa -bed - \
+| awk '{ if (NF<5) next; cg=$5; if (cg>1) cg/=100.0; printf "%s\t%d\t%d\t%.6f\n",$1,$2,$3,cg }' \
+| sort -k1,1 -k2,2n -T ./ \
+> mm10_GC.bedGraph
+
+# Convert .bedGraph file to .bw file
+TMPDIR=./ bedGraphToBigWig Steg2026/references/mm10_GC.bedGraph Steg2026/references/mm10.chrom.sizes Steg2026/references/mm10_GC.bw
+
+# Plot
+computeMatrix reference-point -R Steg2026/EmbryoRNA/results/04_sperm_to_embryo/genes.tss.merged.bed Steg2026/EmbryoRNA/results/04_sperm_to_embryo/genes.tss.background.bed --referencePoint "center" -S Steg2026/references/mm10_CG/mm10_GC.bw -b 2000 -a 2000 --skipZeros -p 8 -o Steg2026/EmbryoRNA/results/04_sperm_to_embryo/CGcontent.genes.tss.mat.gz --outFileSortedRegions Steg2026/EmbryoRNA/results/04_sperm_to_embryo/CGcontent.genes.tss.bed
+
+plotHeatmap -m Steg2026/EmbryoRNA/results/04_sperm_to_embryo/CGcontent.genes.tss.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 --heatmapWidth 2 --colorMap 'YlOrBr' --whatToShow 'plot, heatmap and colorbar' -min 0 -max 1 --samplesLabel "CG content" -out Steg2026/EmbryoRNA/results/04_sperm_to_embryo/CGcontent.genes.tss.pdf
+```
+

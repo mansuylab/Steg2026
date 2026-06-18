@@ -1,0 +1,53 @@
+---
+title: "Embryo RNA maternal Analysis"
+author: "Leonard C. Steg"
+date: '2025-07-15'
+output: html_document
+---
+
+```{r}
+suppressPackageStartupMessages({
+  library(edgeR)
+  library(RColorBrewer)
+  library(ggplot2)
+  library(SummarizedExperiment)
+  library(cowplot)
+  library(SEtools)
+  library(gprofiler2)
+  library(rtracklayer)
+  library(ggrepel)
+  library(TxDb.Mmusculus.UCSC.mm10.knownGene)
+  library(org.Mm.eg.db)
+})
+```
+
+
+Read in pheno file with metadata
+```{r}
+pheno <- read.csv("Steg2026/EmbryoRNA/pheno.csv", row.names = 1)
+```
+
+Load in results from DEA
+```{r}
+se.twocell.pat <- readRDS("Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/SE.rds")
+
+output <- "Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/"
+```
+
+Plot volcano plot
+```{r}
+source("Steg2026/scripts/VolcanoPlotGGPlot.R")
+
+VolcanoPlotGGPlot(dataframe = as.data.frame(rowData(se.twocell.mat)), logFC = "dea.logFC", PValues = "dea.padj",
+                  xlimits = 5, ylimits = 8.5,
+                  color.highlight ="#9C44D3" ,output = output)
+```
+
+Plot GO barplot
+```{r}
+source("Steg2026/scripts/GoTermBarplot.R")
+
+GoTermBarplot(GO.res = metadata(se.twocell.mat)$go_merged, color.low = "#E1E1E1", color.high = "#9C44D3",xlimits = 28,
+              output = output,print = T)
+```
+

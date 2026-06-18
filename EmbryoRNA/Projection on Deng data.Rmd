@@ -1,0 +1,242 @@
+---
+title: "Embryo projection on Deng data"
+author: "Leonard C. Steg"
+date: '2025-10-05'
+output: html_document
+---
+
+
+```{r}
+library(readr)
+library(TxDb.Mmusculus.UCSC.mm10.knownGene)
+library(org.Mm.eg.db)
+library(tximport)
+library(SummarizedExperiment)
+library(gprofiler2)
+library(edgeR)
+library(ggplot2)
+library(cowplot)
+```
+
+Load pheno file with metadata and find paths to salmon dirs
+```{r}
+pheno <- as.data.frame(read_csv("Steg2026/EmbryoRNA/pheno.csv"))
+
+samples <- rownames(pheno)
+sample_dirs <- paste0(samples, "_quant")
+
+# Manually map the sample names to the actual directory names with _SX suffix 
+salmondir <- "Steg2026/EmbryoRNA/results/01_preprocess/05_salmon_quant/"
+
+files <- file.path(salmondir, sample_dirs, "quant.sf")
+names(files) <- samples
+```
+
+Load Deng pheno and bind it to sample pheno and find paths to salmon dirs
+```{r}
+pheno_deng <- as.data.frame(read.csv("Steg2026/Public_data/Deng2014_SRP020490/pheno.csv",row.names = 1))
+rownames(pheno_deng) <- pheno_deng$File_name
+pheno_deng["dataset"] <- "public"
+pheno_deng["Experiment"] <- "Deng_et_al"
+
+# Combine phenos
+combined <- bind_rows(pheno, pheno_deng)
+head(combined)
+
+# Find paths to salmon dirs
+samples_deng <- pheno_deng$File_name
+sample_dirs_deng <- paste0(samples_deng, "_quant")
+# Quantify reads pre-SNPSplit and pre-dedup
+files_deng <- file.path("Steg2026/Public_data/Deng2014_SRP020490/results/01_preprocess/03_salmon_quant", sample_dirs_deng, "quant.sf")
+names(files_deng) <- samples_deng
+
+# Combine file paths from embryo and Deng data
+files_all <- c(files, files_deng)
+```
+
+Load transcript annotation
+```{r}
+# Read in counts from salmon using tximport
+txdb <- TxDb.Mmusculus.UCSC.mm10.knownGene
+# Extract all the transcript names (TXNAME) as keys
+k <- keys(txdb, keytype = "TXNAME")
+# Create a mapping (tx2gene) from TXNAME (transcript IDs) to GENEID (UCSC Entrez IDs)
+tx2gene <- AnnotationDbi::select(txdb, keys = k, columns = "GENEID", keytype = "TXNAME")
+# Use org.Mm.eg.db to map UCSC Entrez IDs to Ensembl Gene IDs
+ensembl_map <- mapIds(org.Mm.eg.db, 
+                      keys = tx2gene$GENEID, 
+                      column = "ENSEMBL", 
+                      keytype = "ENTREZID", 
+                      multiVals = "first")  # Takes only the first value if multiple mappings exist
+# Add the Ensembl gene IDs to the tx2gene data frame
+tx2gene$ENSEMBL <- ensembl_map[tx2gene$GENEID]
+tx2gene_mapped <- tx2gene[!is.na(tx2gene$GENEID) & !is.na(tx2gene$ENSEMBL), ]
+# Convert the ENSEMBL column from a list to a character vector
+tx2gene_mapped$ENSEMBL <- sapply(tx2gene_mapped$ENSEMBL, `[`, 1)
+```
+
+
+Use tx import to import salmon and quantify on gene level
+```{r}
+# Use tximport and extract counts
+txi <- tximport(files_all, type = "salmon", tx2gene = tx2gene_mapped[, c("TXNAME", "ENSEMBL")])
+counts <- txi$counts
+
+se.projection <- SummarizedExperiment(assays = list(counts = as.matrix(counts)),
+                           colData = DataFrame(combined))
+rowData(se.projection) <- gconvert(query = gsub("\\..*","", rownames(se.projection)), 
+                                   organism = "mmusculus", target = "ENSG", filter_na = FALSE)
+
+# Filter and normalize
+geneExpr.projection <- DGEList(assays(se.projection)$counts)
+geneExpr.projection <- calcNormFactors(geneExpr.projection, method = "TMM")
+
+transcripts <- filterByExpr(counts <- geneExpr.projection$counts)
+se.projection <- se.projection[transcripts, ]
+geneExpr.projection <- geneExpr.projection[transcripts, ]
+ntranscripts <- sum(transcripts)
+
+assays(se.projection)$logcpm <- log1p(cpm(geneExpr.projection))
+```
+
+```{r}
+stage_order <- c(
+  "early2cell", "mid2cell", "late2cell", "C57twocell", "2cell_tbd",
+  "4cell", "8cell", "16cell",
+  "earlyblast", "midblast", "lateblast",
+  "zy1", "zy2", "zy3", "zy4",
+  "fibroblast", "BXC"
+)
+
+se.projection$Stage[1:87] <- "2cell_tbd"
+
+colData(se.projection)$Stage <- factor(colData(se.projection)$Stage, levels = stage_order)
+
+stage <- se.projection$Stage   # same as colData(se)$Experiment
+
+se.fibroblast <- se.projection[, stage == "fibroblast"]
+se.early2cell   <- se.projection[, stage == "early2cell"]
+se.mid2cell   <- se.projection[, stage == "mid2cell"]
+se.late2cell   <- se.projection[, stage == "late2cell"]
+se.C57twocell   <- se.projection[, stage == "C57twocell"]
+se.2cell_tbd   <- se.projection[, stage == "2cell_tbd"]
+se.4cell   <- se.projection[, stage == "4cell"]
+se.8cell   <- se.projection[, stage == "8cell"]
+se.16cell   <- se.projection[, stage == "16cell"]
+se.earlyblast   <- se.projection[, stage == "earlyblast"]
+se.midblast   <- se.projection[, stage == "midblast"]
+se.lateblast   <- se.projection[, stage == "lateblast"]
+se.BXC <- se.projection[, stage == "BXC"]
+```
+
+Plotting function
+```{r}
+plot_pca <- function(se, assay_name, color_by,
+                     shape_by    = NULL,
+                     add_labels  = FALSE,
+                     title       = NULL,
+                     color_label = NULL,
+                     shape_label = NULL) {
+  
+  # If no pretty label is given, use the column name
+  if (is.null(color_label)) color_label <- color_by
+  if (is.null(shape_label)) shape_label <- shape_by
+  
+  # Extract matrix and run PCA
+  mat <- assays(se)[[assay_name]]
+  pca <- prcomp(t(mat))
+  pc  <- as.data.frame(pca$x)
+  
+  # Variance explained (same style as your code)
+  varexplained <- paste(
+    round(summary(pca)$importance[2,] * 100, digits = 2),
+    "%"
+  )
+  
+  # Put metadata in columns of pc so ggplot sees them normally
+  pc[[color_by]] <- colData(se)[[color_by]]
+  if (!is.null(shape_by)) {
+    pc[[shape_by]] <- colData(se)[[shape_by]]
+  }
+  
+  # Base ggplot
+  if (is.null(shape_by)) {
+    p <- ggplot(pc, aes(x = PC1, y = PC2,
+                        col = .data[[color_by]])) +
+      geom_point(size = 1) +
+      labs(colour = color_label)
+  } else {
+    p <- ggplot(pc, aes(x = PC1, y = PC2,
+                        col   = .data[[color_by]],
+                        shape = .data[[shape_by]])) +
+      geom_point(size = 1) +
+      labs(colour = color_label, shape = shape_label)
+  }
+  
+  # Optional labels
+  if (add_labels) {
+    p <- p +
+      ggrepel::geom_text_repel(
+        aes(label = rownames(pc)),
+        box.padding   = 0.35,
+        point.padding = 0.5,
+        segment.color = "grey50",
+        max.overlaps  = 5,
+        size          = 4.5
+      )
+  }
+  
+  # manual colors only when coloring by Stage
+  if (color_by == "Stage") {
+    stage_cols <- c(
+      early2cell = "#1b9e77",
+      mid2cell   = "#d95f02",
+      late2cell  = "#7570b3",
+      C57twocell = "#e7298a",
+      `2cell_tbd` = "red",
+      `4cell`    = "#66a61e",
+      `8cell`    = "#e6ab02",
+      `16cell`   = "#a6761d",
+      earlyblast = "#1f78b4",
+      midblast   = "#b2df8a",
+      lateblast  = "#fb9a99",
+      zy1        = "#cab2d6",
+      zy2        = "#fdbf6f",
+      zy3        = "#ff7f00",
+      zy4        = "#6a3d9a",
+      fibroblast = "black",
+      BXC        = "grey50"
+    )
+    
+    p <- p + scale_colour_manual(values = stage_cols, drop = FALSE)
+  }
+  
+  p +
+    xlab(paste("PC1", varexplained[1])) +
+    ylab(paste("PC2", varexplained[2])) +
+    ggtitle(title) +
+    theme_cowplot(10)
+}
+```
+
+Plot and save
+```{r}
+# Remove samples with non-relevant stages
+stage.to.remove <- c("C57twocell","BXC", "fibroblast")
+se.projection.sub <- se.projection[,!(se.projection$Stage %in% stage.to.remove)]
+
+# Run plotting function
+pca_projection <- plot_pca(
+    se         = se.projection.sub,
+    assay_name = "logcpm",
+    color_by   = "Stage",
+    color_label = NULL,
+    shape_by   = NULL,
+    add_labels = FALSE, 
+    title      = "Logcpm - not deduplicated - removed BXC and fibroblasts"
+  )
+
+ggsave("PCA_projection.pdf", plot = pca_projection, path = "Steg2026/EmbryoRNA/results/02_qc_plots/16_staging_QC/", 
+       width = 10, height = 6, units = "cm")
+```
+
