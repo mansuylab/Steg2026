@@ -7,15 +7,20 @@ output: html_document
 
 
 ```{r}
-library(readr)
-library(TxDb.Mmusculus.UCSC.mm10.knownGene)
-library(org.Mm.eg.db)
-library(tximport)
-library(SummarizedExperiment)
-library(gprofiler2)
-library(edgeR)
-library(ggplot2)
-library(cowplot)
+
+
+suppressPackageStartupMessages({
+  library(readr)
+  library(TxDb.Mmusculus.UCSC.mm10.knownGene)
+  library(org.Mm.eg.db)
+  library(tximport)
+  library(SummarizedExperiment)
+  library(gprofiler2)
+  library(edgeR)
+  library(ggplot2)
+  library(cowplot)
+  library(dplyr)
+})
 ```
 
 Load pheno file with metadata and find paths to salmon dirs
