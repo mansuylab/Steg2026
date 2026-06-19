@@ -354,7 +354,7 @@ plotHeatmap -m Steg2026/EmbryoRNA/results/04_sperm_to_embryo/H3K4me3.genes.tss.o
 
 Heatmap for ATAC signal in sperm
 ```{bash engine.opts='-l', eval=F}
-computeMatrix reference-point -R Steg2026/EmbryoRNA/results/04_sperm_to_embryo/genes.tss.merged.bed Steg2026/EmbryoRNA/results/04_sperm_to_embryo/genes.tss.background.bed --referencePoint "center" -S teg2026/Other_data/SpermATAC/tracks_merged.bw -b 2000 -a 2000 --skipZeros -p 4 -o Steg2026/EmbryoRNA/results/04_sperm_to_embryo/ATAC.sperm.mat.gz --outFileSortedRegions Steg2026/EmbryoRNA/results/04_sperm_to_embryo/ATAC.sperm.bed
+computeMatrix reference-point -R Steg2026/EmbryoRNA/results/04_sperm_to_embryo/genes.tss.merged.bed Steg2026/EmbryoRNA/results/04_sperm_to_embryo/genes.tss.background.bed --referencePoint "center" -S Steg2026/Other_data/SpermATAC/tracks_merged.bw -b 2000 -a 2000 --skipZeros -p 4 -o Steg2026/EmbryoRNA/results/04_sperm_to_embryo/ATAC.sperm.mat.gz --outFileSortedRegions Steg2026/EmbryoRNA/results/04_sperm_to_embryo/ATAC.sperm.bed
 
 plotHeatmap -m Steg2026/EmbryoRNA/results/04_sperm_to_embryo/ATAC.sperm.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 --heatmapWidth 2 --colorMap 'Blues' --whatToShow 'plot, heatmap and colorbar' --plotType se --samplesLabel "Sperm ATAC" --regionsLabel "Sperm2Embryo genes" "Random background" -out Steg2026/EmbryoRNA/results/04_sperm_to_embryo/ATAC.sperm.pdf
 ```

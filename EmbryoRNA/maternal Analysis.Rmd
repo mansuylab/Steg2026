@@ -29,7 +29,7 @@ pheno <- read.csv("Steg2026/EmbryoRNA/pheno.csv", row.names = 1)
 
 Load in results from DEA
 ```{r}
-se.twocell.pat <- readRDS("Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/SE.rds")
+se.mat <- readRDS("Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/SE.rds")
 
 output <- "Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/"
 ```
@@ -38,7 +38,7 @@ Plot volcano plot
 ```{r}
 source("Steg2026/scripts/VolcanoPlotGGPlot.R")
 
-VolcanoPlotGGPlot(dataframe = as.data.frame(rowData(se.twocell.mat)), logFC = "dea.logFC", PValues = "dea.padj",
+VolcanoPlotGGPlot(dataframe = as.data.frame(rowData(se.mat)), logFC = "dea.logFC", PValues = "dea.padj",
                   xlimits = 5, ylimits = 8.5,
                   color.highlight ="#9C44D3" ,output = output)
 ```
@@ -47,7 +47,355 @@ Plot GO barplot
 ```{r}
 source("Steg2026/scripts/GoTermBarplot.R")
 
-GoTermBarplot(GO.res = metadata(se.twocell.mat)$go_merged, color.low = "#E1E1E1", color.high = "#9C44D3",xlimits = 28,
+GoTermBarplot(GO.res = metadata(se.mat)$go_merged, color.low = "#E1E1E1", color.high = "#9C44D3",xlimits = 28,
               output = output,print = T)
 ```
 
+Plot overlap between maternal and paternal transcriptome DEAs
+```{r}
+# Load paternal results
+se.pat <- readRDS("Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_pat_mother/SE.rds")
+
+res.pat <- as.data.frame(rowData(se.pat))
+res.mat <- as.data.frame(rowData(se.mat))
+
+pat.up <- res.pat[res.pat$dea.padj < 0.05 & res.pat$dea.logFC > 0.5,]
+mat.up <- res.mat[res.mat$dea.padj < 0.05 & res.mat$dea.logFC > 0.5,]
+
+pat.down <- res.pat[res.pat$dea.padj < 0.05 & res.pat$dea.logFC <  -0.5,]
+mat.down <- res.mat[res.mat$dea.padj < 0.05 & res.mat$dea.logFC < -0.5,]
+
+overlap.up   <- males.up[rownames(pat.up) %in% rownames(mat.up),]
+overlap.down <- males.down[rownames(pat.down) %in% rownames(mat.down),]
+
+
+# Plot as barplot (counts)
+df <- as.data.frame(matrix(NA, nrow = 6, ncol = 3,
+                           dimnames = list(NULL, c("Direction", "Overlap", "Number"))))
+
+df$Direction <- c(rep("Up", 3), rep("Down", 3))
+df$Overlap   <- rep(c("Paternal specific", "Overlap", "Maternal specific"), 2)
+
+df[1, "Number"] <- nrow(pat.up)     - nrow(overlap.up)
+df[2, "Number"] <- nrow(overlap.up)
+df[3, "Number"] <- nrow(mat.up)   - nrow(overlap.up)
+
+df[4, "Number"] <- nrow(pat.down)   - nrow(overlap.down)
+df[5, "Number"] <- nrow(overlap.down)
+df[6, "Number"] <- nrow(mat.down) - nrow(overlap.down)
+
+# Order factors: consistent stack + Down left, Up right
+df$Overlap <- factor(df$Overlap, levels = c("Paternal specific", "Overlap", "Maternal specific"))
+df$Direction <- factor(df$Direction, levels = c("Down", "Up"))
+
+# Totals for label above bars
+totals <- df %>%
+  group_by(Direction) %>%
+  summarise(Total = sum(Number), .groups = "drop")
+
+overlap.pat.mat <- ggplot(df, aes(x = Direction, y = Number, fill = Overlap)) +
+  geom_col(width = 0.6) +
+  geom_text(
+    aes(label = ifelse(Number > 0, Number, "")),
+    position = position_stack(vjust = 0.5),
+    size = 3
+  ) +
+  geom_text(
+    data = totals,
+    aes(x = Direction, y = Total, label = Total),
+    inherit.aes = FALSE,
+    vjust = -0.3,
+    size = 3
+  ) +
+  scale_fill_manual(
+    values = c(
+      "Paternal specific"   = "#1E85D9",
+      "Overlap"                   = "#666666",
+      "Maternal specific" = "#9C44D3"
+    )
+  ) +
+  labs(
+    x = NULL,
+    y = "Number of DEGs",
+    fill = "Expression",
+    title = "Overlapping DEGs between paternal and maternal transcriptomes"
+  ) +
+  theme_cowplot(font_size = 8) +
+  coord_cartesian(clip = "off")
+
+ggsave(
+  "overlap.pat.mat.number.pdf",
+  plot = overlap.pat.mat,
+  device = NULL,
+  path = "Steg2026/EmbryoRNA/results/03_dea/Overlap",
+  width = 6, height = 5, units = "cm"
+)
+
+```
+
+TF target enrichment analysis via Enrichr (https://maayanlab.cloud/Enrichr/). Use tables generated with DEA function to select gene names of differentially expressed genes and the background (total genome).
+Download results from ChEA 2022 database enrichment analysis. Load in resulting df for plotting.
+```{r}
+df <- read.delim(paste0(output, "ChEA_mat_table.txt"), header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+
+df$TF <- sub(" .*", "", df$Term)
+
+# Compute -log10(p) for y-axis
+df$log_padj <- -log10(df$Adjusted.P.value)  # replace with correct column if needed
+
+top_tfs <- df %>%
+  arrange(desc(log_padj)) %>%
+  slice_head(n = nrow(df[df$Adjusted.P.value < 0.05,]))  # or use more if desired
+
+thres.fdr <- -log10(0.05)
+
+tf_plot <- ggplot(df, aes(x = Odds.Ratio, y = log_padj)) +
+  geom_hline(yintercept = thres.fdr, linewidth = 0.3, color = "grey40") +
+  geom_point(color = "grey70", size = 1.5) +  
+  geom_point(data = top_tfs, aes(x = Odds.Ratio, y = log_padj), color = "#9C44D3", size = 2) +  # highlight
+  geom_text_repel(data = top_tfs,
+                  aes(label = TF),
+                  size = 2, 
+                  box.padding = 0.3,
+                  point.padding = 0.2,
+                  max.overlaps = 15) +
+  labs(x = "Odds ratio", y = expression(-log[10](adj.p-value))) +
+  theme_cowplot(font_size = 8, line_size = 0.5)
+
+ggsave("TF_enrichr_plot.pdf", plot = tf_plot, path=output, width = 4, height = 4.5, units = "cm")
+```
+
+maternal DEGs expressed in oocyte(total RNA)
+```{r}
+txdb <- TxDb.Mmusculus.UCSC.mm10.knownGene
+# Extract all the transcript names (TXNAME) as keys
+k <- keys(txdb, keytype = "TXNAME")
+# Create a mapping (tx2gene) from TXNAME (transcript IDs) to GENEID (UCSC Entrez IDs)
+tx2gene <- AnnotationDbi::select(txdb, keys = k, columns = "GENEID", keytype = "TXNAME")
+# Use org.Mm.eg.db to map UCSC Entrez IDs to Ensembl Gene IDs
+ensembl_map <- mapIds(org.Mm.eg.db, 
+                      keys = tx2gene$GENEID, 
+                      column = "ENSEMBL", 
+                      keytype = "ENTREZID", 
+                      multiVals = "first")  # Takes only the first value if multiple mappings exist
+# Add the Ensembl gene IDs to the tx2gene data frame
+tx2gene$ENSEMBL <- ensembl_map[tx2gene$GENEID]
+tx2gene_mapped <- tx2gene[!is.na(tx2gene$GENEID) & !is.na(tx2gene$ENSEMBL), ]
+# Convert the ENSEMBL column from a list to a character vector
+tx2gene_mapped$ENSEMBL <- sapply(tx2gene_mapped$ENSEMBL, `[`, 1)
+
+
+sample.dir <- "Steg2026/Public_data/OocyteRNA/results/04_salmon_quant_SE/"
+# Define the directories with Salmon quant.sf files
+samples <- list.files(sample.dir)[grepl("Oocyte",list.files(sample.dir))]
+
+# Map the sample names to the actual directory names with _SX suffix 
+  files <- file.path(sample.dir, samples, "quant.sf")
+names(files) <- samples
+
+# Use tximport and extract counts
+txi <- tximport(files, type = "salmon", tx2gene = tx2gene_mapped[, c("TXNAME", "ENSEMBL")])
+counts <- txi$counts
+
+storage.mode(counts) <- "integer"
+
+rownames(counts) <- gconvert(query = gsub("\\..*","", rownames(counts)), organism = "mmusculus", target = "ENSG", filter_na = FALSE)$name
+
+
+# df = raw count matrix (genes x samples)
+dge.public.total <- DGEList(counts = counts)
+# calculate CPM
+cpm.public.total <- cpm(dge.public.total)
+
+# filter
+keep.public.total <- rowSums(cpm.public.total > 0.1) >= 2
+
+# Select significant genes in maternal transcriptome
+fdr.logfc.mat <- fdr.mat[res.mat$dea.padj < 0.05 & abs(fdr.mat$dea.logFC) > 0.5,]
+
+# Which percentage of maternal DEGs are expressed in oocyte dataset?
+perc.expressed.oocyte <- sum(rownames(fdr.logfc.mat) %in% rownames(counts[keep.public.total,]))/ nrow(fdr.logfc.mat)
+
+perc.not.expressed.oocyte <- 1-perc.expressed.oocyte
+
+df <- data.frame(
+  category = c("Expressed in oocyte", "Not expressed in oocyte"),
+  value = c(perc.expressed.oocyte, perc.not.expressed.oocyte)
+)
+
+DEGs.oocyte.plot <- ggplot(df, aes(x = "", y = value, fill = category)) +
+  geom_col() +
+  scale_fill_manual(values = c("Expressed in oocyte" = "#9C44D3",
+                                "Not expressed in oocyte" = "#E6E6E6")) +
+  theme_cowplot()
+
+ggsave("DEGs.expressed.oocyte.pdf", plot = DEGs.oocyte.plot, path=output, width = 4, height = 4.5, units = "cm")
+```
+
+Correlation between miRNA target enrichment and maternal expression.
+miRNA target enrichment was performed with EnrichR (https://maayanlab.cloud/Enrichr/). Input: Tables generated with DEA function to select gene names of differentially expressed genes and the background.
+Output: miRTarBase database, results dataframe saved and loaded in.
+```{r}
+# Load in results from enrichR
+df.mat.mirTar.up <- read.delim("Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/miRTarBase_2017_up.txt", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+
+df.mat.mirTar.down <- read.delim("Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/miRTarBase_2017_down.txt", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+
+# Load in results from sperm miRNA DEA
+se.miRNA <- readRDS("Steg2026/SpermSmallRNA/results/03_dea/se.miRNA.rds")
+res.miRNA <- as.data.frame(rowData(se.miRNA))
+
+# Adjust naming
+df.mat.mirTar.up$miRNA.ID <- sapply(strsplit(df.mat.mirTar.up$Term, "-"), function(x) paste(x[3:length(x)], collapse = "-"))
+
+df.mat.mirTar.down$miRNA.ID <- sapply(strsplit(df.mat.mirTar.down$Term, "-"), function(x) paste(x[3:length(x)], collapse = "-"))
+
+res.miRNA$miRNA.ID <- sapply(strsplit(rownames(res.miRNA), "-"), function(x) paste(x[3:length(x)], collapse = "-"))
+
+# Invert the odds ratio and combined score in the df.mat.mirTar.down
+df.mat.mirTar.down$Odds.Ratio <- -(df.mat.mirTar.down$Odds.Ratio)
+df.mat.mirTar.down$Combined.Score <- -(df.mat.mirTar.down$Combined.Score)
+
+# Merge DFs
+df.mat.mirTar.merged <- rbind(df.mat.mirTar.up,df.mat.mirTar.down)
+
+# Create DF for plotting
+df.cor <- left_join(df.mat.mirTar.merged[,c( "miRNA.ID", "P.value", "Odds.Ratio","Combined.Score")],
+                    res.miRNA[,c("miRNA.ID","dea.logFC", "dea.PValue", "dea.padj" )])
+
+df.cor <- df.cor[complete.cases(df.cor),]
+
+cor.test(df.cor$Odds.Ratio, df.cor$dea.logFC)
+
+# Define highlighted datapoints
+df.cor$highlight <- with(df.cor, Odds.Ratio > 4 & dea.logFC < -0.3)
+
+# Plot
+spermmiRNA_matRNA <- ggplot(df.cor, aes(x = dea.logFC, y = Odds.Ratio)) + 
+    geom_point(aes(fill = highlight),
+             shape = 21, size = 2, alpha = 1,
+             color = "black", stroke = 0.2) +
+  # cross at (0,0)
+  geom_vline(xintercept = 0, linewidth = 0.3,  color = "grey30") +
+  geom_hline(yintercept = 0, linewidth = 0.3,  color = "grey30") +  
+  # thin lines at x=5 and y=-0.5
+  geom_vline(xintercept = -0.3, linewidth = 0.3, linetype = "dashed",color = "grey40") +
+  geom_hline(yintercept = 4, linewidth = 0.3, linetype = "dashed",color = "grey40") +
+  scale_fill_manual(
+    values = c(`TRUE` = "#9C44D3", `FALSE` = "grey70"),
+    labels = c(`TRUE` = "miRNA regulated", `FALSE` = "other"),
+    name = NULL
+  ) +
+  labs(x = "sperm miRNA logFC", y = "miRNA Target enrichment") +
+  theme_cowplot(font_size = 7) +
+  xlim(-3,3) + 
+  ylim(-35, 65) +
+  theme(legend.position = "top")
+
+
+ggsave("spermmiRNA_matRNA.correlation.pdf", plot = spermmiRNA_matRNA, path=output, width = 5.3, height = 5, units = "cm")
+```
+
+Repeat same analysis with miRNA target enrichment in paternal transcriptome
+```{r}
+# Load in results from enrichR
+df.pat.mirTar.up <- read.delim("Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_pat_mother/miRTarBase_2017_up.txt", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+
+df.pat.mirTar.down <- read.delim("Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_pat_mother/miRTarBase_2017_down.txt", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+
+# Load in results from sperm miRNA DEA
+se.miRNA <- readRDS("Steg2026/SpermSmallRNA/results/03_dea/se.miRNA.rds")
+res.miRNA <- as.data.frame(rowData(se.miRNA))
+
+# Adjust naming
+df.pat.mirTar.up$miRNA.ID <- sapply(strsplit(df.pat.mirTar.up$Term, "-"), function(x) paste(x[3:length(x)], collapse = "-"))
+
+df.pat.mirTar.down$miRNA.ID <- sapply(strsplit(df.pat.mirTar.down$Term, "-"), function(x) paste(x[3:length(x)], collapse = "-"))
+
+res.miRNA$miRNA.ID <- sapply(strsplit(rownames(res.miRNA), "-"), function(x) paste(x[3:length(x)], collapse = "-"))
+
+# Invert the odds ratio and combined score in the df.pat.mirTar.down
+df.pat.mirTar.down$Odds.Ratio <- -(df.pat.mirTar.down$Odds.Ratio)
+df.pat.mirTar.down$Combined.Score <- -(df.pat.mirTar.down$Combined.Score)
+
+# Merge DFs
+df.pat.mirTar.merged <- rbind(df.pat.mirTar.up,df.pat.mirTar.down)
+
+# Create DF for plotting
+df.cor <- left_join(df.pat.mirTar.merged[,c( "miRNA.ID", "P.value", "Odds.Ratio","Combined.Score")],
+                    res.miRNA[,c("miRNA.ID","dea.logFC", "dea.PValue", "dea.padj" )])
+
+df.cor <- df.cor[complete.cases(df.cor),]
+
+cor.test(df.cor$Odds.Ratio, df.cor$dea.logFC)
+
+# Define highlighted datapoints
+df.cor$highlight <- with(df.cor, Odds.Ratio > 4 & dea.logFC < -0.3)
+
+# Plot
+spermmiRNA_patRNA <- ggplot(df.cor, aes(x = dea.logFC, y = Odds.Ratio)) + 
+    geom_point(aes(fill = highlight),
+             shape = 21, size = 2, alpha = 1,
+             color = "black", stroke = 0.2) +
+  # cross at (0,0)
+  geom_vline(xintercept = 0, linewidth = 0.3,  color = "grey30") +
+  geom_hline(yintercept = 0, linewidth = 0.3,  color = "grey30") +  
+  # thin lines at x=5 and y=-0.5
+  geom_vline(xintercept = -0.3, linewidth = 0.3, linetype = "dashed",color = "grey40") +
+  geom_hline(yintercept = 4, linewidth = 0.3, linetype = "dashed",color = "grey40") +
+  scale_fill_manual(
+    values = c(`TRUE` = "#1E85D9", `FALSE` = "grey70"),
+    labels = c(`TRUE` = "miRNA regulated", `FALSE` = "other"),
+    name = NULL
+  ) +
+  labs(x = "sperm miRNA logFC", y = "miRNA Target enrichment") +
+  theme_cowplot(font_size = 7) +
+  xlim(-3,3) + 
+  ylim(-35, 65) +
+  theme(legend.position = "top")
+
+
+ggsave("spermmiRNA_patRNA.correlation.pdf", plot = spermmiRNA_patRNA, path=output, width = 5.3, height = 5, units = "cm")
+```
+
+Save bed files with regions for heatmaps
+```{r}
+# Find the Entrez ID for each maternal genes
+res.mat$Entrez <- mapIds(org.Mm.eg.db,
+                         keys = rownames(res.mat),
+                         keytype = "SYMBOL",
+                         column = "ENTREZID",
+                         multiVals = "first")
+
+# Load in txdb for mm10
+txdb <- TxDb.Mmusculus.UCSC.mm10.knownGene
+tx_by_gene <- transcriptsBy(txdb, by = "gene")
+
+genes <- genes(TxDb.Mmusculus.UCSC.mm10.knownGene)
+
+set.seed(123)
+
+# Bed of DEGs
+genes.merged <- genes[names(genes) %in% unname(res.mat[res.mat$dea.padj < 0.05,]$Entrez) ]
+genes.tss.merged <- resize(genes.merged, width = 1, fix = "start") 
+export.bed(genes.tss.merged, con = paste0(output,"genes.tss.merged.bed"))
+
+# Bed of random background
+genes.background <- tx_by_gene[names(genes) %in% unname(res.mat$Entrez)]
+genes.tss.background <- resize(genes.background, width = 1, fix = "start") 
+export.bed(sample(unlist(genes.tss.background), size = nrow(res.mat[res.mat$dea.padj < 0.05,])), con = paste0(output,"genes.tss.background.bed"))
+```
+
+Heatmap for H3K4me3 over gene start sides but with all genes, leaving out up and down, including maternal tracks
+```{bash engine.opts='-l', eval=F}
+computeMatrix reference-point -R Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/genes.tss.sign.bed Steg2026/EmbryoRNA/results/04_dea/TwoCell-Basemodel_mat_mother/genes.tss.background.bed --referencePoint "center" -S Steg2026/Public_data/results/H3K4me3/Sperm_H3K4me3_rep1.bw  Steg2026/Public_data/results/H3K4me3/PN5-zygote_H3K4me3_genome1.merged.bw Steg2026/Public_data/results/H3K4me3/2-cell-early_H3K4me3_genome1.merged.bw Steg2026/Public_data/results/H3K4me3/2-cell-late_H3K4me3_genome1.merged.bw -b 2000 -a 2000 --skipZeros -p 4 -o Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/H3K4me3.genes.tss.sign.mat.gz --outFileSortedRegions Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/H3K4me3.genes.tss.sign.bed
+
+plotHeatmap -m Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/H3K4me3.genes.tss.sign.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 --heatmapWidth 2 --colorMap 'Blues' 'Purples' 'Purples' 'Purples' --whatToShow 'plot, heatmap and colorbar' --plotType se --samplesLabel "Sperm" "PN5 zygote mat" "TwoCell early mat" "TwoCell late mat" --regionsLabel "Maternal DEGs" "Random background" -out Steg2026/EmbryoRNA/results/04_dea/TwoCell-Basemodel_mat_mother/H3K4me3.genes.tss.sign.pdf
+```
+
+Heatmap for ATAC DNAme and H3K27me3 in sperm cells at the maternal DEGs
+```{bash engine.opts='-l', eval=F}
+computeMatrix reference-point -R Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/genes.tss.sign.bed Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/genes.tss.background.bed --referencePoint "center" -S Steg2026/Other_data/SpermATAC/tracks_merged.bw Steg2026/Other_data/Sperm_EMseq/tracks_merged.bw Steg2026/Public_data/results/H3K27me3/Sperm_H3K27me3.bw -b 2000 -a 2000 --skipZeros -p 4 -o Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/Sperm.chromatin.genes.tss.sign.mat.gz --outFileSortedRegions Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/Sperm.chromatin.genes.tss.sign.bed
+
+plotHeatmap -m Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/Sperm.chromatin.genes.tss.sign.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 --heatmapWidth 2 --colorMap 'Blues' --whatToShow 'plot, heatmap and colorbar' --plotType se --samplesLabel "Sperm ATAC" "Sperm DNAme" "Sperm H3K27me3" --regionsLabel "Maternal DEGs" "Random background" -out Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/Sperm.chromatin.genes.tss.sign.pdf
+```
