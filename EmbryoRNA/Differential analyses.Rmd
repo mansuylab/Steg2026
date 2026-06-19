@@ -23,18 +23,18 @@ Run DEAs for full transcriptome, paternal and maternal transcriptomes. Use Mothe
 dea.RNA.Embryo(pheno = pheno, stage = "TwoCell", genome = NULL,
                  VarExp = "Group", CovarBio = c("Mother"),
                  CtrGroup = "CTR", ExpGroup = "LPD", 
-                 outputdir = "Steg2026/EmbryoRNA/results/04_dea/", suffix = "Basemodel_dedup_mother", 
+                 outputdir = "Steg2026/EmbryoRNA/results/03_dea/", suffix = "Basemodel_dedup_mother", 
                  salmondir = "Steg2026/EmbryoRNA/results/01_preprocess/10_salmon_post_dedup/")
 
 dea.RNA.Embryo(pheno = pheno, stage = "TwoCell", genome = "genome1",
                  VarExp = "Group", CovarBio = c("Mother"), 
                  CtrGroup = "CTR", ExpGroup = "LPD", 
-                 outputdir = "Steg2026/EmbryoRNA/results/04_dea/", suffix = "Basemodel_pat_mother", 
+                 outputdir = "Steg2026/EmbryoRNA/results/03_dea/", suffix = "Basemodel_pat_mother", 
                  salmondir = "Steg2026/EmbryoRNA/results/01_preprocess/15_salmon_post_snpsplit/genome1/")
 
 dea.RNA.Embryo(pheno = pheno, stage = "TwoCell", genome = "genome2",
                  VarExp = "Group", CovarBio = c("Mother"), 
                  CtrGroup = "CTR", ExpGroup = "LPD", 
-                 outputdir = "Steg2026/EmbryoRNA/results/04_dea/", suffix = "Basemodel_mat_mother", 
+                 outputdir = "Steg2026/EmbryoRNA/results/03_dea/", suffix = "Basemodel_mat_mother", 
                  salmondir = "Steg2026/EmbryoRNA/results/01_preprocess/15_salmon_post_snpsplit/genome2/")
 ```

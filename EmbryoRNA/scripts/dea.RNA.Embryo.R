@@ -1,6 +1,6 @@
 # Function to run differential analysis on RNA-seq data, adjusted for Embryo RNA datasets
 
-dea.RNA.Embryo <- function(pheno, stage, genome = NULL, 
+dea.RNA.Embryo <- function(pheno, stage, genome = NULL, exclude = NULL,
                     VarExp = "Group", CovarBio = NULL, CovarTec = NULL, scalefor = NULL,
                     CtrGroup, ExpGroup, outputdir, suffix = NULL, salmondir){
   

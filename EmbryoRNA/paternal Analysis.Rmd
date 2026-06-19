@@ -18,6 +18,7 @@ suppressPackageStartupMessages({
   library(ggrepel)
   library(TxDb.Mmusculus.UCSC.mm10.knownGene)
   library(org.Mm.eg.db)
+  library(dplyr)
 })
 ```
 
@@ -47,7 +48,7 @@ Plot GO barplot
 source("Steg2026/scripts/GoTermBarplot.R")
 
 GoTermBarplot(GO.res = metadata(se.twocell.pat)$go_merged, color.low = "#E1E1E1", color.high = "#09263E",xlimits = 28,
-              output = dir,print = T)
+              output = output, print = T)
 ```
 
 TF target enrichment analysis via Enrichr (https://maayanlab.cloud/Enrichr/). Use tables generated with DEA function to select gene names of differentially expressed genes and the background (total genome).
@@ -312,8 +313,8 @@ ggsave(filename = "barplot.overlap.trxs.pdf", plot = barplot.trxs,path = "Steg20
 Create .bed files at TSS of Sperm2Embryo Genes
 ```{r}
 # Find the Entrez ID for each of the sperm to embryo genes
-same_dir_genes$Entrez <- mapIds(org.Mm.eg.db,
-                                           keys = rownames(same_dir_genes),
+Sperm2EmbryoGenes$Entrez <- mapIds(org.Mm.eg.db,
+                                           keys = rownames(Sperm2EmbryoGenes),
                                            keytype = "SYMBOL",
                                            column = "ENTREZID",
                                            multiVals = "first")
@@ -342,7 +343,7 @@ res.embryo$Entrez <- mapIds(org.Mm.eg.db,keys = rownames(res.embryo),keytype = "
 
 genes.background <- tx_by_gene[names(genes) %in% unname(res.embryo$Entrez)]
 genes.tss.background <- resize(genes.background, width = 1, fix = "start") 
-export.bed(sample(unlist(genes.tss.background), size = nrow(same_dir_genes)), con = paste0(output,"genes.tss.background.bed"))
+export.bed(sample(unlist(genes.tss.background), size = nrow(Sperm2EmbryoGenes)), con = paste0(output,"genes.tss.background.bed"))
 ```
 
 Heatmap for H3K4me3 over gene start sides but with all genes, leaving out up and down, including maternal tracks

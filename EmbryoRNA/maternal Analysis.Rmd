@@ -18,6 +18,7 @@ suppressPackageStartupMessages({
   library(ggrepel)
   library(TxDb.Mmusculus.UCSC.mm10.knownGene)
   library(org.Mm.eg.db)
+  library(dplyr)
 })
 ```
 
@@ -65,8 +66,8 @@ mat.up <- res.mat[res.mat$dea.padj < 0.05 & res.mat$dea.logFC > 0.5,]
 pat.down <- res.pat[res.pat$dea.padj < 0.05 & res.pat$dea.logFC <  -0.5,]
 mat.down <- res.mat[res.mat$dea.padj < 0.05 & res.mat$dea.logFC < -0.5,]
 
-overlap.up   <- males.up[rownames(pat.up) %in% rownames(mat.up),]
-overlap.down <- males.down[rownames(pat.down) %in% rownames(mat.down),]
+overlap.up   <- pat.up[rownames(pat.up) %in% rownames(mat.up),]
+overlap.down <- pat.down[rownames(pat.down) %in% rownames(mat.down),]
 
 
 # Plot as barplot (counts)
@@ -211,7 +212,7 @@ cpm.public.total <- cpm(dge.public.total)
 keep.public.total <- rowSums(cpm.public.total > 0.1) >= 2
 
 # Select significant genes in maternal transcriptome
-fdr.logfc.mat <- fdr.mat[res.mat$dea.padj < 0.05 & abs(fdr.mat$dea.logFC) > 0.5,]
+fdr.logfc.mat <- res.mat[res.mat$dea.padj < 0.05 & abs(res.mat$dea.logFC) > 0.5,]
 
 # Which percentage of maternal DEGs are expressed in oocyte dataset?
 perc.expressed.oocyte <- sum(rownames(fdr.logfc.mat) %in% rownames(counts[keep.public.total,]))/ nrow(fdr.logfc.mat)
@@ -376,9 +377,9 @@ genes <- genes(TxDb.Mmusculus.UCSC.mm10.knownGene)
 set.seed(123)
 
 # Bed of DEGs
-genes.merged <- genes[names(genes) %in% unname(res.mat[res.mat$dea.padj < 0.05,]$Entrez) ]
-genes.tss.merged <- resize(genes.merged, width = 1, fix = "start") 
-export.bed(genes.tss.merged, con = paste0(output,"genes.tss.merged.bed"))
+genes.sign <- genes[names(genes) %in% unname(res.mat[res.mat$dea.padj < 0.05,]$Entrez) ]
+genes.tss.sign <- resize(genes.sign, width = 1, fix = "start") 
+export.bed(genes.tss.sign, con = paste0(output,"genes.tss.sign.bed"))
 
 # Bed of random background
 genes.background <- tx_by_gene[names(genes) %in% unname(res.mat$Entrez)]
@@ -388,9 +389,9 @@ export.bed(sample(unlist(genes.tss.background), size = nrow(res.mat[res.mat$dea.
 
 Heatmap for H3K4me3 over gene start sides but with all genes, leaving out up and down, including maternal tracks
 ```{bash engine.opts='-l', eval=F}
-computeMatrix reference-point -R Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/genes.tss.sign.bed Steg2026/EmbryoRNA/results/04_dea/TwoCell-Basemodel_mat_mother/genes.tss.background.bed --referencePoint "center" -S Steg2026/Public_data/results/H3K4me3/Sperm_H3K4me3_rep1.bw  Steg2026/Public_data/results/H3K4me3/PN5-zygote_H3K4me3_genome1.merged.bw Steg2026/Public_data/results/H3K4me3/2-cell-early_H3K4me3_genome1.merged.bw Steg2026/Public_data/results/H3K4me3/2-cell-late_H3K4me3_genome1.merged.bw -b 2000 -a 2000 --skipZeros -p 4 -o Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/H3K4me3.genes.tss.sign.mat.gz --outFileSortedRegions Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/H3K4me3.genes.tss.sign.bed
+computeMatrix reference-point -R Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/genes.tss.sign.bed Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/genes.tss.background.bed --referencePoint "center" -S Steg2026/Public_data/results/H3K4me3/Sperm_H3K4me3_rep1.bw  Steg2026/Public_data/results/H3K4me3/PN5-zygote_H3K4me3_genome1.merged.bw Steg2026/Public_data/results/H3K4me3/2-cell-early_H3K4me3_genome1.merged.bw Steg2026/Public_data/results/H3K4me3/2-cell-late_H3K4me3_genome1.merged.bw -b 2000 -a 2000 --skipZeros -p 4 -o Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/H3K4me3.genes.tss.sign.mat.gz --outFileSortedRegions Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/H3K4me3.genes.tss.sign.bed
 
-plotHeatmap -m Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/H3K4me3.genes.tss.sign.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 --heatmapWidth 2 --colorMap 'Blues' 'Purples' 'Purples' 'Purples' --whatToShow 'plot, heatmap and colorbar' --plotType se --samplesLabel "Sperm" "PN5 zygote mat" "TwoCell early mat" "TwoCell late mat" --regionsLabel "Maternal DEGs" "Random background" -out Steg2026/EmbryoRNA/results/04_dea/TwoCell-Basemodel_mat_mother/H3K4me3.genes.tss.sign.pdf
+plotHeatmap -m Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/H3K4me3.genes.tss.sign.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 --heatmapWidth 2 --colorMap 'Blues' 'Purples' 'Purples' 'Purples' --whatToShow 'plot, heatmap and colorbar' --plotType se --samplesLabel "Sperm" "PN5 zygote mat" "TwoCell early mat" "TwoCell late mat" --regionsLabel "Maternal DEGs" "Random background" -out Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/H3K4me3.genes.tss.sign.pdf
 ```
 
 Heatmap for ATAC DNAme and H3K27me3 in sperm cells at the maternal DEGs
