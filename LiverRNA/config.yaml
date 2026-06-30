@@ -1,5 +1,4 @@
-prefix: "LPD1_Liver"
-data_dir: /mnt/IM/data/RNA-Seq/F23A430001774_MUSuowmO/soapnuke/clean/
+data_dir: Steg2026/LiverRNA/data/
 run_rseqc: False
 samples:
   - B6-F0-9
@@ -99,13 +98,13 @@ trimming_params:
     length: 30
     stringency: 2
 fastq_screen_conf: "/mnt/IM/groupMansuy/kerem/auxiliary/conf/fastq_screen.conf"
-salmon_index_dir: "/mnt/groupMansuy/kerem/auxiliary/genomes/mm10_salmon_index"
-star_genome_dir: "/mnt/groupMansuy/kerem/auxiliary/genomes/mm10_star_125_refGene"
-pwk_star_genome_dir_v3: "/mnt/groupMansuy/kerem/auxiliary/genomes/mm10_PWK_PhJ_star_v3"
-pwk_SNP_list: "/mnt/groupMansuy/kerem/auxiliary/all_SNPs_PWK_PhJ_GRCm38.txt.gz"
-GTF_file: "/mnt/groupMansuy/kerem/auxiliary/genomes/mm10_raw/mm10.refGene.gtf"
-GTF_file_v3: "/mnt/groupMansuy/kerem/auxiliary/genomes/mm10_raw/mm10.refGene_modified.gtf"
-bed_file: "/mnt/groupMansuy/kerem/auxiliary/genomes/mm10_raw/mm10.knownGene.bed12"
+salmon_index_dir: "Steg2026/auxiliary/genomes/mm10_salmon_index"
+star_genome_dir: "Steg2026/auxiliary/genomes/mm10_star_125_refGene"
+pwk_star_genome_dir_v3: "Steg2026/auxiliary/genomes/mm10_PWK_PhJ_star_v3"
+pwk_SNP_list: "Steg2026/auxiliary/all_SNPs_PWK_PhJ_GRCm38.txt.gz"
+GTF_file: "Steg2026/auxiliary/genomes/mm10_raw/mm10.refGene.gtf"
+GTF_file_v3: "Steg2026/auxiliary/genomes/mm10_raw/mm10.refGene_modified.gtf"
+bed_file: "Steg2026/auxiliary/genomes/mm10_raw/mm10.knownGene.bed12"
 ANALYSIS_DIRS:
   - 01_FastQC_raw_data
   - 02_trimmed_data
@@ -113,7 +112,6 @@ ANALYSIS_DIRS:
   - 04_FQScreen_trimmed_data
   - 05_salmon_quant
   - 06_star_aligned
-  - 07_markdup
   - 09_GeneBodyCov
   - 11_snpsplit
   - 12_salmon_post_snpsplit

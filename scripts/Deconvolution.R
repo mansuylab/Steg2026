@@ -11,9 +11,6 @@
 # Clear the workspace
 rm(list = ls())
 
-# Set working directory (adjust as needed)
-setwd("path")
-
 # CIBERSORTx login details
 username <- "username"
 token <- "token"
@@ -24,11 +21,8 @@ mixture_name <- "LPD2_SSC_counts_rounded.txt"
 # CIBERSORTx Singularity image file
 sif_file <- "./cibersortx-fractions.sif"
 
-# Directory containing reference datasets
-reference_dir <- "path/for/references"
-
 # Define the specific reference datasets to be used in this analysis
-# Could be generated from PrepTan2020.R, PrepGreen2018.R and PrepHermann2018.R
+# Could be generated from PrepHermann2018.R
 reference_names <- c("Hermann2018_Adu_ID4sorted.txt")
 
 # Tag to be appended to output folders

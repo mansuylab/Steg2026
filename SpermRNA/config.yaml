@@ -1,4 +1,4 @@
-data_dir: /mnt/IM/data/RNA-Seq/LPD2_Sperm/merged_files/
+data_dir: Steg2026/SpermRNA/data/
 run_rseqc: True
 samples:
   - B6-F0-03
@@ -22,15 +22,13 @@ trimming_params:
     length: 30
     stringency: 2
 fastq_screen_conf: "/mnt/IM/groupMansuy/kerem/auxiliary/conf/fastq_screen.conf"
-salmon_index_dir: "/mnt/groupMansuy/kerem/auxiliary/genomes/mm10_salmon_index"
-star_genome_dir: "/mnt/groupMansuy/kerem/auxiliary/genomes/mm10_star_125_refGene"
-star_genome_dir_TE: "/mnt/groupMansuy/kerem/auxiliary/genomes/mm10_star_125_GENCODE_rmsk_TE"
-GTF_file: "/mnt/groupMansuy/kerem/auxiliary/genomes/mm10_raw/mm10.refGene.gtf"
-GTF_file_TE: "/mnt/groupMansuy/kerem/auxiliary/genomes/mm10_raw/GRCm38_GENCODE_rmsk_TE.gtf"
-bed_file: "/mnt/groupMansuy/kerem/auxiliary/genomes/mm10_raw/mm10.knownGene.bed12"
+salmon_index_dir: "Steg2026/auxiliary/genomes/mm10_salmon_index"
+star_genome_dir: "Steg2026/auxiliary/genomes/mm10_star_125_refGene"
+GTF_file: "Steg2026/auxiliary/genomes/mm10_raw/mm10.refGene.gtf"
+bed_file: "Steg2026/auxiliary/genomes/mm10_raw/mm10.knownGene.bed12"
 sortmerna_ref:
-  - /mnt/groupMansuy/kerem/auxiliary/genome/rRNA_databases/silva-euk-28s-id98.fasta
-  - /mnt/groupMansuy/kerem/auxiliary/genome/rRNA_databases/silva-euk-18s-id95.fasta
+  - Steg2026/auxiliary/genome/rRNA_databases/silva-euk-28s-id98.fasta
+  - Steg2026/auxiliary/genome/rRNA_databases/silva-euk-18s-id95.fasta
 ANALYSIS_DIRS:
   - 01_FastQC_raw_data
   - 03_trimmed_data
@@ -42,5 +40,3 @@ ANALYSIS_DIRS:
   - 11_umi_deduplicated
   - 12_salmon_post_dedup
   - 15_GeneBodyCov
-  - 16_star_aligned_TE
-  - 17_featureCounts_TE

@@ -22,17 +22,17 @@ library(ggplot2)
 rm(list = ls())
 
 # Define paths for saving plots and outputs
-path_to_plots <- "/Users/kuzel/NEL/deconvolution_scRNAseq/plots"
-path_to_outputs <- "/Users/kuzel/NEL/deconvolution_scRNAseq/output_files"
+path_to_plots <- "Steg2026/deconvolution/plots"
+path_to_outputs <- "/Steg2026/deconvolution/output_files"
 
 # Load cluster IDs for Adult samples
-cluster_IDs <- read.csv("/Users/kuzel/Downloads/Hermann2018_Adu_ID4sorted/Hermann2018_Adu_ID4sorted.csv", row.names = 1)
+cluster_IDs <- read.csv("/Steg2026/Hermann2018_Adu_ID4sorted/Hermann2018_Adu_ID4sorted.csv", row.names = 1)
 # information taken from the .cloupe files in doi: 10.17632/kxd5f8vpt4.1
 
 # Load expression data for Adult samples
-barcodes_Adu_ID4sorted <- readLines("/Users/kuzel/Downloads/Hermann2018_Adu_ID4sorted/GSE109033_Ad-Id4GFP-bright-dim-CD9bright_filteredmatrixbarcodes.tsv")
-features_Adu_ID4sorted <- read.delim("/Users/kuzel/Downloads/Hermann2018_Adu_ID4sorted/GSE109033_Ad-Id4GFP-bright-dim-CD9bright_filteredmatrixgenes.tsv", header = FALSE, row.names = 1)
-matrix_Adu_ID4sorted <- readMM(file = "/Users/kuzel/Downloads/Hermann2018_Adu_ID4sorted/GSE109033_Ad-Id4GFP-bright-dim-CD9bright_filteredmatrix.mtx")
+barcodes_Adu_ID4sorted <- readLines("/Steg2026/Hermann2018_Adu_ID4sorted/GSE109033_Ad-Id4GFP-bright-dim-CD9bright_filteredmatrixbarcodes.tsv")
+features_Adu_ID4sorted <- read.delim("/Steg2026/Hermann2018_Adu_ID4sorted/GSE109033_Ad-Id4GFP-bright-dim-CD9bright_filteredmatrixgenes.tsv", header = FALSE, row.names = 1)
+matrix_Adu_ID4sorted <- readMM(file = "/Steg2026/Hermann2018_Adu_ID4sorted/GSE109033_Ad-Id4GFP-bright-dim-CD9bright_filteredmatrix.mtx")
 
 # Set barcodes and feature names as column and row names of the matrix
 colnames(matrix_Adu_ID4sorted) <- barcodes_Adu_ID4sorted

@@ -1,6 +1,0 @@
-name: cutadapt_modern
-channels:
-  - bioconda
-  - conda-forge
-dependencies:
-  - cutadapt=5.2

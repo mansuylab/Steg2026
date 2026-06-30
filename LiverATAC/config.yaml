@@ -1,4 +1,4 @@
-data_dir: /mnt/IM/data/ATAC-Seq/LPD1_Liver/Merged/
+data_dir: Steg2026/LiverATAC/data/
 samples:
   - B6-F1-001
   - B6-F1-002
@@ -40,10 +40,10 @@ trimming_params:
     stringency: 2
 mapping_params:
     max_insert: 2000
-ref_genome_dir: "/mnt/groupMansuy/kerem/auxiliary/genomes/mm10_bowtie2/mm10"
-ref_genome_dir_SNPsplit: "/mnt/groupMansuy/kerem/auxiliary/genomes/mm10_PWK_PhJ_bowtie2/mm10_PWK_PhJ_bowtie2"
-pwk_SNP_list: "/mnt/groupMansuy/kerem/auxiliary/all_SNPs_PWK_PhJ_GRCm38.txt.gz"
-blacklist_file: "/mnt/groupMansuy/kerem/auxiliary/blacklist_mm10_v2.bed"
+ref_genome_dir: "Steg2026/auxiliary/genomes/mm10_bowtie2/mm10"
+ref_genome_dir_SNPsplit: "Steg2026/auxiliary/genomes/mm10_PWK_PhJ_bowtie2/mm10_PWK_PhJ_bowtie2"
+pwk_SNP_list: "Steg2026/auxiliary/all_SNPs_PWK_PhJ_GRCm38.txt.gz"
+blacklist_file: "Steg2026/auxiliary/blacklist_mm10_v2.bed"
 filtering_params:
     quality: 30
 selecting_NFF_params:
@@ -59,4 +59,4 @@ heatmap_peaks_params:
 heatmap_tss_params:
     upstream: 5000
     downstream: 5000
-ref_TSS: "/mnt/groupMansuy/kerem/auxiliary/refTSS_v3.3_mouse_coordinate.mm10.bed"
+ref_TSS: "Steg2026/auxiliary/refTSS_v3.3_mouse_coordinate.mm10.bed"

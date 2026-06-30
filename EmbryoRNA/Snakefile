@@ -49,7 +49,7 @@ rule fqc_raw_data_R1:
     log:
         "logs/01_FastQC_rawdata/{sample}_R1.log"
     conda:
-        "envs/fastq.yaml"
+        "Steg2026/envs/fastq.yaml"
     threads: 2
     shell:
         "fastqc -t {threads} -o results/01_preprocess/01_FastQC_raw_data/ {input.fastq} > {log} 2>&1"
@@ -63,24 +63,24 @@ rule fqc_raw_data_R2:
     log:
         "logs/01_FastQC_rawdata/{sample}_R2.log"
     conda:
-        "envs/fastq.yaml"
+        "Steg2026/envs/fastq.yaml"
     threads: 2
     shell:
         "fastqc -t {threads} -o results/01_preprocess/01_FastQC_raw_data/ {input.fastq} > {log} 2>&1"
 
 rule extract_umi:
     input:
-        read1="/mnt/IM/data/RNA-Seq/LPD2_Embryos/Merged/{sample}_R1.fastq.gz",
-        read2="/mnt/IM/data/RNA-Seq/LPD2_Embryos/Merged/{sample}_R2.fastq.gz"
+        read1="Steg2026/data/RNA-Seq/LPD2_Embryos/Merged/{sample}_R1.fastq.gz",
+        read2="Steg2026/data/RNA-Seq/LPD2_Embryos/Merged/{sample}_R2.fastq.gz"
     output:
-        read1_trimmed=temp("/mnt/IM/groupMansuy/leo/LPD2/EmbryoRNA/manual_umi_extraction/{sample}_R1.fastq.gz"),
-        read2_trimmed=temp("/mnt/IM/groupMansuy/leo/LPD2/EmbryoRNA/manual_umi_extraction/{sample}_R2.fastq.gz")
+        read1_trimmed=temp("Steg2026/EmbryoRNA/manual_umi_extraction/{sample}_R1.fastq.gz"),
+        read2_trimmed=temp("Steg2026/EmbryoRNA/manual_umi_extraction/{sample}_R2.fastq.gz")
     params:
-        tag_map="/mnt/IM/groupMansuy/kerem/auxiliary/software/CogentAP/config/recognition_tag_map_5pUMI_with_N.csv",
-        script="/mnt/IM/groupMansuy/leo/LPD2/EmbryoRNA/manual_umi_extraction/extract_smartseq_fla_umi.py",
-        outdir="/mnt/IM/groupMansuy/leo/LPD2/EmbryoRNA/manual_umi_extraction"
+        tag_map="Steg2026/auxiliary/software/CogentAP/config/recognition_tag_map_5pUMI_with_N.csv",
+        script="Steg2026/scripts/extract_smartseq_fla_umi.py",
+        outdir="Steg2026/EmbryoRNA/manual_umi_extraction"
     conda:
-        "envs/manual_umi_env.yaml"
+        "Steg2026/envs/manual_umi_env.yaml"
     shell:
         """
         python {params.script} \
@@ -107,7 +107,7 @@ rule trimming:
     log:
         "logs/02_trimming/{sample}_trimming.log"
     conda:
-        "envs/trimg.yaml"
+        "Steg2026/envs/trimg.yaml"
     threads: 2
     shell:
         """
@@ -130,7 +130,7 @@ rule fqc_trimmed_data_R1:
     log:
         "logs/03_FastQC_trimmed/{sample}_R1_trimmed.log"
     conda:
-        "envs/fastq.yaml"
+        "Steg2026/envs/fastq.yaml"
     threads: 2
     shell:
         "fastqc -t {threads} -o results/01_preprocess/03_FastQC_trimmed_data/ {input.trimmed_fq} > {log} 2>&1"
@@ -144,7 +144,7 @@ rule fqc_trimmed_data_R2:
     log:
         "logs/03_FastQC_trimmed/{sample}_R2_trimmed.log"
     conda:
-        "envs/fastq.yaml"
+        "Steg2026/envs/fastq.yaml"
     threads: 2
     shell:
         "fastqc -t {threads} -o results/01_preprocess/03_FastQC_trimmed_data/ {input.trimmed_fq} > {log} 2>&1"
@@ -158,7 +158,7 @@ rule fqscreen_trimmed_data_R1:
     log:
         trimmed="logs/04_FQScreen_trimmed_data/{sample}_R1_trimmed.log",
     conda:
-        "envs/fqscreen.yaml"
+        "Steg2026/envs/fqscreen.yaml"
     threads: 2
     shell:
         """
@@ -176,7 +176,7 @@ rule fqscreen_trimmed_data_R2:
     log:
         trimmed="logs/04_FQScreen_trimmed_data/{sample}_R2_trimmed.log",
     conda:
-        "envs/fqscreen.yaml"
+        "Steg2026/envs/fqscreen.yaml"
     threads: 2
     shell:
         """
@@ -195,7 +195,7 @@ rule star_aligner:
         star="logs/06_star_aligned/{sample}_staralign.log",
         index="logs/06_star_aligned/{sample}_index.log",
     conda:
-        "envs/star.yaml"
+        "Steg2026/envs/star.yaml"
     threads: 5
     shell:
         """
@@ -219,7 +219,7 @@ rule add_umi_tag_from_qname:
         bam="results/01_preprocess/08_bam_with_umi_tag/{sample}_with_UM_tag.bam",
         bai="results/01_preprocess/08_bam_with_umi_tag/{sample}_with_UM_tag.bam.bai"
     conda:
-        "envs/umi.yaml"
+        "Steg2026/envs/umi.yaml"
     shell:
         """
         mkdir -p $(dirname {output.bam})
@@ -250,7 +250,7 @@ rule umi_deduplication:
     log:
         "logs/09_umi_deduplicated/{sample}_deduplication_log.txt"
     conda:
-        "envs/umi.yaml"
+        "Steg2026/envs/umi.yaml"
     shell:
         """
         # Deduplicate BAM file using umi_tools dedup
@@ -281,7 +281,7 @@ rule salmon_post_dedup:
         salmon="logs/10_salmon_post_dedup/{sample}_salmon.log",
         samtools_fastq="logs/10_salmon_post_dedup/{sample}_samtools_fastq.log"
     conda:
-        "envs/salmonsort.yaml"
+        "Steg2026/envs/salmonsort.yaml"
     threads: 4
     shell:
         """
@@ -309,7 +309,7 @@ rule calculate_tin:
     output:
         tsv="results/01_preprocess/11_TinScore/{sample}.tsv"
     conda:
-        "envs/rseqc.yaml"
+        "Steg2026/envs/rseqc.yaml"
     threads: 7
     shell:
         """
@@ -327,7 +327,7 @@ rule merge_tin:
     output:
         "results/01_preprocess/11_TinScore/merged.tsv"
     conda:
-        "envs/rseqc.yaml"
+        "Steg2026/envs/rseqc.yaml"
     shell:
         """
         if [ "{config[run_rseqc]}" = "True" ]; then
@@ -344,13 +344,13 @@ rule plot_tin_scores:
     output:
         "results/02_qc_plots/11_TinScore/tin_scores.png"
     conda:
-        "envs/r_ggplot2.yaml"
+        "Steg2026/envs/r_ggplot2.yaml"
     params:
         run = config["run_rseqc"]
     shell:
         """
         if [ "{params.run}" = "True" ]; then
-            Rscript scripts/plot_tin_scores.R {input} {output}
+            Rscript Steg2026/scripts/plot_tin_scores.R {input} {output}
         else
             echo "RSeQC analysis is turned off in the config."
             touch {output}  # Create a dummy file
@@ -366,7 +366,7 @@ rule calculate_genebodycoverage:
         r=temp("results/01_preprocess/12_GeneBodyCov/{sample}.geneBodyCoverage.r"),
         txt="results/01_preprocess/12_GeneBodyCov/{sample}.geneBodyCoverage.txt"
     conda:
-        "envs/rseqc.yaml"
+        "Steg2026/envs/rseqc.yaml"
     shell:
         """
         # Update the access and modification times of the index files
@@ -400,7 +400,7 @@ rule star_aligner_pwk_v3:
     log:
         star="logs/13_star_aligned_pwk_v3/{sample}_staralign.log"
     conda:
-        "envs/star.yaml"
+        "Steg2026/envs/star.yaml"
     threads: 4
     shell:
         """
@@ -432,7 +432,7 @@ rule SNPsplit:
     log:
         "logs/14_snpsplit/{sample}.log"
     conda:
-        "envs/snpsplit.yaml"
+        "Steg2026/envs/snpsplit.yaml"
     threads: 2
     shell:
         """
@@ -455,7 +455,7 @@ rule salmon_post_snpsplit_genome1:
         salmon="logs/15_salmon_post_snpsplit/{sample}_genome1_salmon.log",
         samtools_fastq="logs/15_salmon_post_snpsplit/{sample}_genome1_samtools_fastq.log"
     conda:
-        "envs/salmonsort.yaml"
+        "Steg2026/envs/salmonsort.yaml"
     threads: 4
     shell:
         """
@@ -488,7 +488,7 @@ rule salmon_post_snpsplit_genome2:
         salmon="logs/15_salmon_post_snpsplit/{sample}_genome2_salmon.log",
         samtools_fastq="logs/15_salmon_post_snpsplit/{sample}_genome2_samtools_fastq.log"
     conda:
-        "envs/salmonsort.yaml"
+        "Steg2026/envs/salmonsort.yaml"
     threads: 4
     shell:
         """
@@ -526,9 +526,9 @@ rule multiqc:
         html="results/02_qc_plots/{analysis}/multiqc_report.html"
     params:
         outdir="results/02_qc_plots/{analysis}",
-        configfile="envs/multiqc_config.yaml"
+        configfile="Steg2026/envs/multiqc_config.yaml"
     conda:
-        "envs/multiqc.yaml"
+        "Steg2026/envs/multiqc124.yaml"
     shell:
         """
         multiqc -c {params.configfile} -o {params.outdir} results/01_preprocess/{wildcards.analysis} -p -s -d --interactive

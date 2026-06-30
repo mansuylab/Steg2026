@@ -43,7 +43,7 @@ rule fqc_raw_data_R1:
     log:
         "logs/01_FastQC_rawdata/{sample}_1.log"
     conda:
-        "envs/fastq.yaml"
+        "Steg2026/envs/fastq.yaml"
     threads: 2
     shell:
         "fastqc -t {threads} -o results/01_preprocess/01_FastQC_raw_data/ {input.fastq} > {log} 2>&1"
@@ -60,7 +60,7 @@ rule trimming:
     log:
         "logs/02_trimming/{sample}_trimming.log"
     conda:
-        "envs/trimg.yaml"
+        "Steg2026/envs/trimg.yaml"
     threads: 2
     shell:
         """
@@ -82,7 +82,7 @@ rule fqc_trimmed_data_R1:
     log:
         "logs/03_FastQC_trimmed/{sample}_1_trimmed.log"
     conda:
-        "envs/fastq.yaml"
+        "Steg2026/envs/fastq.yaml"
     threads: 2
     shell:
         "fastqc -t {threads} -o results/01_preprocess/03_FastQC_trimmed_data/ {input.trimmed_fq} > {log} 2>&1"
@@ -97,7 +97,7 @@ rule fqscreen_trimmed_data_R1:
     log:
         trimmed="logs/04_FQScreen_trimmed_data/{sample}_1_trimmed.log",
     conda:
-        "envs/fqscreen.yaml"
+        "Steg2026/envs/fqscreen.yaml"
     threads: 2
     shell:
         """
@@ -115,7 +115,7 @@ rule mapping_bowtie:
     log:
         "logs/05_bowtie_mapping/{sample}_bowtie.log"
     conda:
-        "envs/bowtie1.yaml"
+        "Steg2026/envs/bowtie1.yaml"
     threads: 2
     shell:
         """
@@ -142,7 +142,7 @@ rule sam2bam2bed:
     log:
         "logs/06_sam2bam2bed/{sample}.log"
     conda:
-        "envs/samtools.yaml"
+        "Steg2026/envs/samtools.yaml"
     threads: 2
     shell:
         """
@@ -173,7 +173,7 @@ rule mirna_counts_all_refs:
     log:
         "logs/07_mirna_counts/{sample}_mirna_count.log"
     conda:
-        "envs/samtools.yaml"
+        "Steg2026/envs/samtools.yaml"
     shell:
         """
         mkdir -p results/01_preprocess/07_mirna_counts
@@ -200,7 +200,7 @@ rule pirna_counts:
     log:
         "logs/08_pirna_counts/{sample}_pirna_count.log"
     conda:
-        "envs/samtools.yaml"
+        "Steg2026/envs/samtools.yaml"
     shell:
         """
         echo "Counting piRNAs for sample {wildcards.sample}" > {log}
@@ -219,7 +219,7 @@ rule mapping_bowtie_GRCm39:
     log:
         "logs/09_bowtie_mapping_GRCm39/{sample}_bowtie.log"
     conda:
-        "envs/bowtie1.yaml"
+        "Steg2026/envs/bowtie1.yaml"
     threads: 5
     shell:
         """
@@ -246,7 +246,7 @@ rule sam2bam2bed_GRCm39:
     log:
         "logs/10_sam2bam2bed_GRCm39/{sample}.log"
     conda:
-        "envs/samtools.yaml"
+        "Steg2026/envs/samtools.yaml"
     threads: 2
     shell:
         """
@@ -274,7 +274,7 @@ rule trna_counts:
     log:
         "logs/11_trna_counts/{sample}_trna_count.log"
     conda:
-        "envs/samtools.yaml"
+        "Steg2026/envs/samtools.yaml"
     shell:
         """
         echo "Counting tRNAs for sample {wildcards.sample}" > {log}
@@ -300,11 +300,11 @@ rule multiqc:
         html="results/02_qc_plots/{analysis}/multiqc_report.html"
     params:
         outdir="results/02_qc_plots/{analysis}",
-        configfile="envs/multiqc_config.yaml"
+        configfile="Steg2026/envs/multiqc_config.yaml"
     log:
         "logs/12_multiqc/{analysis}.log"
     conda:
-        "envs/multiqc.yaml"
+        "Steg2026/envs/multiqc124.yaml "
     shell:
         """
         multiqc -c {params.configfile} -o {params.outdir} results/01_preprocess/{wildcards.analysis} -p -s -d --interactive  > {log} 2>&1

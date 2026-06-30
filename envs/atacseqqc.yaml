@@ -1,9 +1,0 @@
-channels:
-  - conda-forge
-  - bioconda
-
-dependencies:
-  - r-base=4.1.2
-  - bioconductor-txdb.mmusculus.ucsc.mm10.knowngene=3.10.0
-  - bioconductor-atacseqqc=1.18.0
-  - bioconductor-genomicranges=1.46.1

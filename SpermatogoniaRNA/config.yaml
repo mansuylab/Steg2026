@@ -1,5 +1,4 @@
-prefix: "LPD2_SSC"
-data_dir: /mnt/IM/data/RNA-Seq/LPD2_SCs/o36147_NovaSeq_240904_X127/
+data_dir: Steg2026/SpermatogoniaRNA/data/
 run_rseqc: True
 samples:
   - B6-F0-04_S12
@@ -19,13 +18,13 @@ trimming_params:
     stringency: 2
 fastq_screen_conf: "/mnt/IM/groupMansuy/kerem/auxiliary/conf/fastq_screen.conf"
 sortmerna_ref:
-  - /mnt/groupMansuy/kerem/auxiliary/genome/rRNA_databases/silva-euk-28s-id98.fasta
-  - /mnt/groupMansuy/kerem/auxiliary/genome/rRNA_databases/silva-euk-18s-id95.fasta
-  - /mnt/groupMansuy/kerem/auxiliary/genome/rRNA_databases/mm10_mitochondrial.fasta
-salmon_index_dir: "/mnt/groupMansuy/kerem/auxiliary/genomes/mm10_salmon_index"
-star_genome_dir: "/mnt/groupMansuy/kerem/auxiliary/genomes/mm10_star_125_refGene"
-GTF_file: "/mnt/groupMansuy/kerem/auxiliary/genomes/mm10_raw/mm10.refGene.gtf"
-bed_file: "/mnt/groupMansuy/kerem/auxiliary/genomes/mm10_raw/mm10.knownGene.bed12"
+  - Steg2026/auxiliary/genome/rRNA_databases/silva-euk-28s-id98.fasta
+  - Steg2026/auxiliary/genome/rRNA_databases/silva-euk-18s-id95.fasta
+  - Steg2026/auxiliary/genome/rRNA_databases/mm10_mitochondrial.fasta
+salmon_index_dir: "Steg2026/auxiliary/genomes/mm10_salmon_index"
+star_genome_dir: "Steg2026/auxiliary/genomes/mm10_star_125_refGene"
+GTF_file: "Steg2026/auxiliary/genomes/mm10_raw/mm10.refGene.gtf"
+bed_file: "Steg2026/auxiliary/genomes/mm10_raw/mm10.knownGene.bed12"
 ANALYSIS_DIRS:
   - 01_FastQC_raw_data
   - 03_trimmed_data
@@ -33,10 +32,9 @@ ANALYSIS_DIRS:
   - 05_FQScreen_trimmed_data
   - 07_FastQC_sortmernaed_data
   - 08_FQScreen_sortmernaed_data
-  - 09_salmon_quant
+  - 09_salmon_post_dedup
   - 10_star_aligned
   - 11_umi_deduplicated
-  - 12_markdup
   - 15_featureCounts
 
   

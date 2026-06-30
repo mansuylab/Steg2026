@@ -56,7 +56,7 @@ rule fqc_raw_data_R1:
     log:
         "logs/01_FastQC_rawdata/{sample}_R1.log"
     conda:
-        "envs/fastq.yaml"
+        "Steg2026/envs/fastq.yaml"
     threads: 1
     shell:
         "fastqc -t {threads} -o results/qc_plots_02/01_FastQC_raw_data/ {input.fastq} > {log} 2>&1"
@@ -70,7 +70,7 @@ rule fqc_raw_data_R2:
     log:
         "logs/01_FastQC_rawdata/{sample}_R2.log"
     conda:
-        "envs/fastq.yaml"
+        "Steg2026/envs/fastq.yaml"
     threads: 1
     shell:
         "fastqc -t {threads} -o results/qc_plots_02/01_FastQC_raw_data/ {input.fastq} > {log} 2>&1"
@@ -90,7 +90,7 @@ rule trimming:
         "logs/02_trimming/{sample}_trimming.log"
     threads: 2
     conda:
-        "envs/trimg.yaml"
+        "Steg2026/envs/trimg.yaml"
     shell:
         """
         trim_galore --paired \
@@ -112,7 +112,7 @@ rule fqc_trimmed_data_R1:
     log:
         "logs/03_FastQC_trimmed/{sample}_R1_trimmed.log"
     conda:
-        "envs/fastq.yaml"
+        "Steg2026/envs/fastq.yaml"
     threads: 1
     shell:
         "fastqc -t {threads} -o results/qc_plots_02/02_FastQC_trimmed_data/ {input.trimmed_fq} > {log} 2>&1"
@@ -126,7 +126,7 @@ rule fqc_trimmed_data_R2:
     log:
         "logs/03_FastQC_trimmed/{sample}_R2_trimmed.log"
     conda:
-        "envs/fastq.yaml"
+        "Steg2026/envs/fastq.yaml"
     threads: 1
     shell:
         "fastqc -t {threads} -o results/qc_plots_02/02_FastQC_trimmed_data/ {input.trimmed_fq} > {log} 2>&1"
@@ -142,7 +142,7 @@ rule mapping:
     log:
         "logs/04_mapping/{sample}_mapped.log"
     conda:
-        "envs/bowtie2.yaml"
+        "Steg2026/envs/bowtie2.yaml"
     threads: 7
     shell:
         """
@@ -166,7 +166,7 @@ rule filtering:
         picard_stderr="logs/05_filtering/{sample}.picard.stderr.log"
 
     conda:
-        "envs/filtering.yaml"
+        "Steg2026/envs/filtering.yaml"
     threads: 7
     shell:
         """
@@ -176,7 +176,7 @@ rule filtering:
         # Picard step
         picard MarkDuplicates -I {input.bam} -M {log.dups} \
         -O {output.marked_bam} --REMOVE_DUPLICATES false \
-        -Djava.io.tmpdir=/mnt/IM/tmp/ 2>{log.picard_stderr}
+        -Djava.io.tmpdir=/tmp/ 2>{log.picard_stderr}
         
         # Bedtools intersect and further filtering
         bedtools intersect -v -a {output.marked_bam} -b {config[blacklist_file]} | \
@@ -197,7 +197,7 @@ rule sorting:
     log:
         "logs/06_sorting/{sample}_sorted.log"
     conda:
-        "envs/sorting.yaml"
+        "Steg2026/envs/sorting.yaml"
     threads: 4
     shell:
         """
@@ -223,7 +223,7 @@ rule remove_duplicates:
         picard_log="logs/07_remove_duplicates/{sample}.picard.log",
         index_log="logs/07_remove_duplicates/{sample}.index.log"
     conda:
-        "envs/filtering.yaml"
+        "Steg2026/envs/filtering.yaml"
     threads: 3
     shell:
         """
@@ -232,7 +232,7 @@ rule remove_duplicates:
         # Picard MarkDuplicates for removing duplicates
         picard MarkDuplicates -I {input.sorted_bam} -O {output.dedup_bam} \
         -M {output.metrics} --REMOVE_DUPLICATES true \
-        -Djava.io.tmpdir=/mnt/IM/tmp/ 2>> {log.picard_log}
+        -Djava.io.tmpdir=/tmp/ 2>> {log.picard_log}
 
         echo "[INFO] Indexing deduplicated BAM" >> {log.index_log}
 
@@ -250,7 +250,7 @@ rule sort_deduplicated:
         sort_log="logs/08_sort_deduplicated/{sample}_sort.log",
         index_log="logs/08_sort_deduplicated/{sample}_index.log"
     conda:
-        "envs/sorting.yaml"
+        "Steg2026/envs/sorting.yaml"
     threads: 3
     shell:
         """
@@ -277,7 +277,7 @@ rule tn5_shifting:
         log_err="logs/09_tn5_shifting/{sample}_shift.log",
         log_metrics="logs/09_tn5_shifting/{sample}_shift_metrics.log"
     conda:
-        "envs/deeptools.yaml"
+        "Steg2026/envs/deeptools.yaml"
     threads: 4
     shell:
         """
@@ -316,7 +316,7 @@ rule selecting_NFF:
     log:
         "logs/10_NFF/{sample}_NFF.log"
     conda:
-        "envs/deeptools.yaml"
+        "Steg2026/envs/deeptools.yaml"
     threads: 4
     shell:
         """
@@ -355,7 +355,7 @@ rule peak_calling:
     log:
         "logs/11_peak_calling/{sample}.log"
     conda:
-        "envs/macs2.yaml"
+        "Steg2026/envs/macs2.yaml"
     shell:
         """
         macs2 callpeak -f BAMPE \
@@ -380,9 +380,9 @@ rule filter_peaks:
     log:
         log="logs/12_filtering_peaks/{sample}_filter.log"
     conda:
-        "envs/r_env.yaml"
+        "Steg2026/envs/r_env.yaml"
     script:
-        "scripts/filter_peaks.R"
+        "Steg2026/scripts/filter_peaks.R"
 
 rule generate_tracks:
     input:
@@ -394,7 +394,7 @@ rule generate_tracks:
     log:
         "logs/13_generate_tracks/{sample}_tracks.log"
     conda:
-        "envs/deeptools.yaml"
+        "Steg2026/envs/deeptools.yaml"
     threads: 7
     shell:
         """
@@ -416,9 +416,9 @@ rule peaks_histogram:
         barplot="results/qc_plots_02/03_filtered_peaks/peaks_barplot.png",
         log="results/qc_plots_02/03_filtered_peaks/peak_histogram.log"
     conda:
-        "envs/r_env.yaml"
+        "Steg2026/envs/r_env.yaml"
     script:
-        "scripts/peak_histogram2.R"
+        "Steg2026/scripts/peak_histogram2.R"
 
 rule calculate_tss_score_individual:
     input:
@@ -431,10 +431,10 @@ rule calculate_tss_score_individual:
     log:
         log="logs/14_tss_score/{sample}_tss_score.log"
     conda:
-        "envs/r_env3.yaml"
+        "Steg2026/envs/r_env3.yaml"
     threads: 2
     script:
-        "scripts/tss_score_individual.R"
+        "Steg2026/scripts/tss_score_individual.R"
 
 rule combine_tss_scores:
     input:
@@ -446,9 +446,9 @@ rule combine_tss_scores:
     log:
         log="logs/14_tss_score/combined_tss_score.log"
     conda:
-        "envs/r_env3.yaml"
+        "Steg2026/envs/r_env3.yaml"
     script:
-        "scripts/combine_tss_scores.R"
+        "Steg2026/scripts/combine_tss_scores.R"
 
 rule heatmap_peaks:
     input:
@@ -465,7 +465,7 @@ rule heatmap_peaks:
     log:
         "logs/15_heatmaps/no_spm_{sample}_peaks.log"
     conda:
-        "envs/deeptools.yaml"
+        "Steg2026/envs/deeptools.yaml"
     shell:
         """
         computeMatrix reference-point \
@@ -500,7 +500,7 @@ rule heatmap_tss:
     log:
         "logs/16_heatmaps/no_spm_{sample}_tss.log"
     conda:
-        "envs/deeptools.yaml"
+        "Steg2026/envs/deeptools.yaml"
     shell:
         """
         computeMatrix reference-point \
@@ -542,7 +542,7 @@ rule multibam_and_plots:
         sorted="logs/17_multibam/multibam_sorted.log",
         NF="logs/17_multibam/multibam_NF.log"
     conda:
-        "envs/deeptools.yaml"
+        "Steg2026/envs/deeptools.yaml"
     shell:
         """
         # For sorted
@@ -573,7 +573,7 @@ rule multi_heatmap_tss:
     log:
         "logs/16_heatmaps/multiheatmap_{group}.log"
     conda:
-        "envs/deeptools.yaml"
+        "Steg2026/envs/deeptools.yaml"
     shell:
         """
         computeMatrix reference-point \
@@ -607,7 +607,7 @@ rule pbc_metrics:
         "logs/18_pbc_metrics/{sample}_pbc.log"
     threads: 3
     conda:
-        "envs/bedtools.yaml" 
+        "Steg2026/envs/bedtools.yaml" 
     shell:
         """
         # Sort bam by names
@@ -617,7 +617,7 @@ rule pbc_metrics:
         bedtools bamtobed -bedpe -i {output.tmp_bam} > {output.tmp_bed} 2>> {log}
         
         # Calculate pbc metrics for each sample via external bash script
-        scripts/calculate_pbc.sh {output.tmp_bed} {output.pbc} 2>> {log}
+        Steg2026/scripts/calculate_pbc.sh {output.tmp_bed} {output.pbc} 2>> {log}
         """
 
 rule combine_pbc_metrics:
@@ -628,9 +628,9 @@ rule combine_pbc_metrics:
     log:
         log="logs/18_pbc_metrics/combined_pbc_metrics.log"
     conda:
-        "envs/r_env3.yaml"
+        "Steg2026/envs/r_env3.yaml"
     script:
-        "scripts/combine_pbc_metrics.R"
+        "Steg2026/scripts/combine_pbc_metrics.R"
 
 rule calculate_frip:
     input:
@@ -641,7 +641,7 @@ rule calculate_frip:
     log:
         "logs/19_frip_scores/{sample}_frip.log"
     conda:
-        "envs/bedtools.yaml"
+        "Steg2026/envs/bedtools.yaml"
     shell:
         """
         # Count the total number of reads in the bam file
@@ -682,9 +682,9 @@ rule fragSizeDist_plot:
     output:
         plot="results/qc_plots_02/08_fragSizeDist/{sample}_fragSizeDist.pdf"
     conda:
-        "envs/r_env3.yaml"
+        "Steg2026/envs/r_env3.yaml"
     script:
-        "scripts/fragSizeDist_script.R"
+        "Steg2026/scripts/fragSizeDist_script.R"
 
 rule fragSizeDist_nff_plot:
     input:
@@ -692,9 +692,9 @@ rule fragSizeDist_nff_plot:
     output:
         plot="results/qc_plots_02/08_fragSizeDist/{sample}_fragSizeDist_nff.pdf"
     conda:
-        "envs/r_env3.yaml" 
+        "Steg2026/envs/r_env3.yaml" 
     script:
-        "scripts/fragSizeDist_script.R"
+        "Steg2026/scripts/fragSizeDist_script.R"
 
 
 rule TSS_enrichment_plot:
@@ -705,9 +705,9 @@ rule TSS_enrichment_plot:
     log:
         log="logs/14_tss_enr_plot/{sample}_tss_enrichment_plot.log"
     conda:
-        "envs/r_env3.yaml" 
+        "Steg2026/envs/r_env3.yaml" 
     script:
-        "scripts/tss_enrichment_plot.R"
+        "Steg2026/scripts/tss_enrichment_plot.R"
 
 rule mapping_forSNPsplit:
     input:
@@ -720,7 +720,7 @@ rule mapping_forSNPsplit:
     log:
         "logs/21_mapping_forSNPsplit/{sample}_mapped.log"
     conda:
-        "envs/bowtie2.yaml"
+        "Steg2026/envs/bowtie2.yaml"
     threads: 7
     shell:
         """
@@ -739,7 +739,7 @@ rule filtering_forSNPsplit:
     log:
         filtered="logs/22_filtering_forSNPsplit/{sample}.filtered"
     conda:
-        "envs/filtering.yaml"
+        "Steg2026/envs/filtering.yaml"
     threads: 7
     shell:
         """        
@@ -761,7 +761,7 @@ rule sorting_coord:
     log:
         "logs/23_sorting_coord/{sample}_sorted.log"
     conda:
-        "envs/sorting.yaml"
+        "Steg2026/envs/sorting.yaml"
     threads: 4
     shell:
         """
@@ -785,14 +785,14 @@ rule remove_duplicates_forSNPsplit:
     log:
         picard_log="logs/24_remove_duplicates_forSNPsplit/{sample}.picard.log",
     conda:
-        "envs/filtering.yaml"
+        "Steg2026/envs/filtering.yaml"
     shell:
         """
         echo "[INFO] Removing duplicates from BAM" >> {log.picard_log}
         # Picard MarkDuplicates for removing duplicates
         picard MarkDuplicates -I {input.sorted_bam} -O {output.dedup_bam} \
         -M {output.metrics} --REMOVE_DUPLICATES true \
-        -Djava.io.tmpdir=/mnt/IM/tmp/ 2>> {log.picard_log}
+        -Djava.io.tmpdir=/tmp/ 2>> {log.picard_log}
         """
     
 rule SNPsplit:
@@ -811,7 +811,7 @@ rule SNPsplit:
     log:
         "logs/25_snpsplit/{sample}.log"
     conda:
-        "envs/snpsplit.yaml"
+        "Steg2026/envs/snpsplit.yaml"
     threads: 1
     shell:
         """
