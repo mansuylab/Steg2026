@@ -1,6 +1,6 @@
 # Deconvolution.R
 # This script runs deconvolution of bulk RNA-seq data using CIBERSORTx, with pre-prepared reference datasets.
-# It processes multiple reference datasets and uses them to estimate cell type proportions in bulk RNA-seq samples in Lazar-Contes et al 2024.
+# It processes multiple reference datasets and uses them to estimate cell type proportions in bulk RNA-seq samples in Steg et al 2026.
 
 # Reference:
 # Newman AM, Steen CB, Liu CL, Gentles AJ, Chaudhuri AA, Scherer F, Khodadoust MS, Esfahani MS, Luca BA, Steiner D, Diehn M, Alizadeh AA. 

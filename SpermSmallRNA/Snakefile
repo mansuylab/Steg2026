@@ -304,7 +304,7 @@ rule multiqc:
     log:
         "logs/12_multiqc/{analysis}.log"
     conda:
-        "Steg2026/envs/multiqc124.yaml "
+        "Steg2026/envs/multiqc124.yaml"
     shell:
         """
         multiqc -c {params.configfile} -o {params.outdir} results/01_preprocess/{wildcards.analysis} -p -s -d --interactive  > {log} 2>&1
