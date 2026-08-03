@@ -5,12 +5,14 @@ date: '2025-07-15'
 output: html_document
 ---
 
-Read in pheno file with metadata
+Read in metadata file and save pheno
 ```{r}
-pheno <- read.csv("Steg2026/EmbryoRNA/pheno.csv", row.names = 1)
+pheno <- read.csv("Steg2026/EmbryoRNA/metadata.csv", row.names = 1)
 
 pheno$Group <- as.factor(pheno$Group)
 pheno$Mother <- as.factor(pheno$Mother)
+
+write.csv(pheno,"Steg2026/EmbryoRNA/pheno.csv")
 ```
 
 Load function
@@ -20,6 +22,8 @@ source("Steg2026/EmbryoRNA/scripts/dea.RNA.Embryo.R")
 
 Run DEAs for full transcriptome, paternal and maternal transcriptomes. Use Mother as Covariate.
 ```{r}
+pheno <- read.csv("Steg2026/EmbryoRNA/pheno.csv", row.names = 1)
+
 dea.RNA.Embryo(pheno = pheno, stage = "TwoCell", genome = NULL,
                  VarExp = "Group", CovarBio = c("Mother"),
                  CtrGroup = "CTR", ExpGroup = "LPD", 

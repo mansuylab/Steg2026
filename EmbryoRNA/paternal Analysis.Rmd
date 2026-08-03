@@ -96,17 +96,15 @@ res.sperm <- as.data.frame(rowData(se.sperm))
 res.twocell.pat <- as.data.frame(rowData(se.twocell.pat))
 res.twocell.mat <- as.data.frame(rowData(se.twocell.mat))
 
-top.twocell.pat <- rownames(res.twocell.pat[res.twocell.pat$dea.padj < 0.05,])
-
-top.twocell.pat <- top.twocell.pat[top.twocell.pat %in% rownames(se.sperm) & top.twocell.pat %in% rownames(se.twocell.mat)]
+data.overlap <- res.twocell.pat[res.twocell.pat %in% rownames(se.sperm) & res.twocell.pat %in% rownames(se.twocell.mat)]
 ```
 
 Identify genes that are consistently up or down in sperm and 2cell paternal
 ```{r}
 logfc_matrix_sperm2pat <- data.frame(
-  Sperm = res.sperm[top.twocell.pat, "dea.logFC"],
-  TwoCell = res.twocell.pat[top.twocell.pat, "dea.logFC"],
-  row.names = top.twocell.pat
+  Sperm = res.sperm[data.overlap, "dea.logFC"],
+  TwoCell = res.twocell.pat[data.overlap, "dea.logFC"],
+  row.names = data.overlap
 )
 # Subset for genes with all positive logFCs
 logfc_up <- logfc_matrix_sperm2pat[apply(logfc_matrix_sperm2pat, 1, function(x) all(x > 0.5)), ]
@@ -124,10 +122,10 @@ Plot heatmap with expression of Sperm2EmbryoGenes in sperm, embryo paternal and 
 range_val <- max(abs(logfc_matrix_sperm2pat)) 
 
 logfc_mat <- data.frame(
-  Sperm = res.sperm[top.twocell.pat, "dea.logFC"],
-  TwoCell.pat = res.twocell.pat[top.twocell.pat, "dea.logFC"],
-  TwoCell.mat = res.twocell.mat[top.twocell.pat, "dea.logFC"],
-  row.names = top.twocell.pat
+  Sperm = res.sperm[data.overlap, "dea.logFC"],
+  TwoCell.pat = res.twocell.pat[data.overlap, "dea.logFC"],
+  TwoCell.mat = res.twocell.mat[data.overlap, "dea.logFC"],
+  row.names = data.overlap
 )
 
 logfc_mat <- logfc_mat[rownames(Sperm2EmbryoGenes),]
