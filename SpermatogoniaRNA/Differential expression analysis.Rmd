@@ -169,7 +169,7 @@ cd Steg2026/SpermatogoniaRNA/results/03_dea/B6-F0-Male-Basemodel/RRHO_Sperm_BH/
 
 computeMatrix reference-point -R genes.tss.dd.bed genes.tss.uu.bed genes.tss.background.bed --referencePoint "center" -S Steg2026/Other_data/Spermatogonia_Lazar_ATAC/tracks_merged.bw -b 2000 -a 2000 --skipZeros -p 6 -o RRHO.genes.tss.ATAC.onlySPG.mat.gz --outFileSortedRegions RRHO.genes.tss.ATAC.onlySPG.bed
 
-plotHeatmap -m RRHO.genes.tss.ATAC.onlySPG.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 --heatmapWidth 2 --colorMap 'bone_r' --whatToShow 'plot, heatmap and colorbar' --plotType se --samplesLabel "Spermatogonia ATAC" --regionsLabel "UU" "DD" "Random background" -out RRHO.genes.tss.ATAC.onlySPG.pdf
+plotHeatmap -m RRHO.genes.tss.ATAC.onlySPG.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 --heatmapWidth 2 --colorMap 'bone_r' --whatToShow 'plot, heatmap and colorbar' --plotType se --samplesLabel "Spermatogonia ATAC" --regionsLabel "DD" "UU" "Random background" -out RRHO.genes.tss.ATAC.onlySPG.pdf
 ```
 
 Plot ATAC heatmap for sperm
@@ -178,7 +178,7 @@ cd Steg2026/SpermatogoniaRNA/results/03_dea/B6-F0-Male-Basemodel/RRHO_Sperm_BH/
 
 computeMatrix reference-point -R genes.tss.dd.bed genes.tss.uu.bed genes.tss.background.bed --referencePoint "center" -S Steg2026/Other_data/SpermATAC/tracks_merged.bw -b 2000 -a 2000 --skipZeros -p 6 -o RRHO.genes.tss.ATAC.onlySperm.mat.gz --outFileSortedRegions RRHO.genes.tss.ATAC.onlySperm.bed
 
-plotHeatmap -m RRHO.genes.tss.ATAC.onlySperm.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 --heatmapWidth 2 --zMin 0 --zMax 0.6  --colorMap 'PuBu' --whatToShow 'plot, heatmap and colorbar' --plotType se --samplesLabel "Sperm ATAC"  --regionsLabel "UU" "DD" "Random background" -out RRHO.genes.tss.ATAC.onlySperm.pdf
+plotHeatmap -m RRHO.genes.tss.ATAC.onlySperm.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 --heatmapWidth 2 --zMin 0 --zMax 0.6  --colorMap 'PuBu' --whatToShow 'plot, heatmap and colorbar' --plotType se --samplesLabel "Sperm ATAC"  --regionsLabel "DD" "UU" "Random background" -out RRHO.genes.tss.ATAC.onlySperm.pdf
 ```
 
 Plot H3K4me3 heatmap for spermatogonia
@@ -187,7 +187,7 @@ cd Steg2026/SpermatogoniaRNA/results/03_dea/B6-F0-Male-Basemodel/RRHO_Sperm_BH/
 
 computeMatrix reference-point -R genes.tss.dd.bed genes.tss.uu.bed genes.tss.background.bed --referencePoint "center" -S Steg2026/Public_data/Cheng_2020/H3K4me3/tracks_spermatogonia.bw -b 2000 -a 2000 --skipZeros -p 6 -o RRHO.genes.tss.H3K4me3.onlySPG.mat.gz --outFileSortedRegions RRHO.genes.tss.H3K4me3.onlySPG.bed
 
-plotHeatmap -m RRHO.genes.tss.H3K4me3.onlySPG.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 --heatmapWidth 2 -min 0 -max 60 --colorMap 'bone_r' --whatToShow 'plot, heatmap and colorbar' --plotType se --samplesLabel  "Spermatogonia K4me3"  --regionsLabel "UU" "DD" "Random background" -out RRHO.genes.tss.H3K4me3.onlySPG.pdf
+plotHeatmap -m RRHO.genes.tss.H3K4me3.onlySPG.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 --heatmapWidth 2 -min 0 -max 60 --colorMap 'bone_r' --whatToShow 'plot, heatmap and colorbar' --plotType se --samplesLabel  "Spermatogonia K4me3"  --regionsLabel "DD" "UU" "Random background" -out RRHO.genes.tss.H3K4me3.onlySPG.pdf
 ```
 
 Plot H3K4me3 heatmap for sperm
@@ -196,7 +196,7 @@ cd Steg2026/SpermatogoniaRNA/results/03_dea/B6-F0-Male-Basemodel/RRHO_Sperm_BH/
 
 computeMatrix reference-point -R genes.tss.dd.bed genes.tss.uu.bed genes.tss.background.bed --referencePoint "center" -S Steg2026/Public_data/H3K4me3/tracks_sperm.bw -b 2000 -a 2000 --skipZeros -p 6 -o RRHO.genes.tss.H3K4me3.onlySperm.mat.gz --outFileSortedRegions RRHO.genes.tss.H3K4me3.onlySperm.bed
 
-plotHeatmap -m RRHO.genes.tss.H3K4me3.onlySperm.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 --heatmapWidth 2 --zMin 0 --zMax 0.6 --colorMap 'PuBu' --whatToShow 'plot, heatmap and colorbar' --plotType se --samplesLabel  "Sperm K4me3"  --regionsLabel "UU" "DD" "Random background" -out RRHO.genes.tss.H3K4me3.onlySperm.pdf
+plotHeatmap -m RRHO.genes.tss.H3K4me3.onlySperm.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 --heatmapWidth 2 --zMin 0 --zMax 0.6 --colorMap 'PuBu' --whatToShow 'plot, heatmap and colorbar' --plotType se --samplesLabel  "Sperm K4me3"  --regionsLabel "DD" "UU" "Random background" -out RRHO.genes.tss.H3K4me3.onlySperm.pdf
 ```
 
 Plot H3K27me3 heatmap for spermatogonia
@@ -205,7 +205,7 @@ cd Steg2026/SpermatogoniaRNA/results/03_dea/B6-F0-Male-Basemodel/RRHO_Sperm_BH/
 
 computeMatrix reference-point -R genes.tss.dd.bed genes.tss.uu.bed genes.tss.background.bed --referencePoint "center" -S  Steg2026/Public_data/Cheng_2020/H3K27me3/tracks_spermatogonia.bw -b 2000 -a 2000 --skipZeros -p 6 -o RRHO.genes.tss.K27me3.onlySPG.mat.gz --outFileSortedRegions RRHO.genes.tss.K27me3.onlySPG.bed
 
-plotHeatmap -m RRHO.genes.tss.K27me3.onlySPG.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 --heatmapWidth 2 -min 0 -max 60 --colorMap 'bone_r' --whatToShow 'plot, heatmap and colorbar' --plotType se --samplesLabel  "Spermatogonia K27me3"  --regionsLabel "UU" "DD" "Random background" -out RRHO.genes.tss.K27me3.onlySPG.pdf
+plotHeatmap -m RRHO.genes.tss.K27me3.onlySPG.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 --heatmapWidth 2 -min 0 -max 60 --colorMap 'bone_r' --whatToShow 'plot, heatmap and colorbar' --plotType se --samplesLabel  "Spermatogonia K27me3"  --regionsLabel "DD" "UU" "Random background" -out RRHO.genes.tss.K27me3.onlySPG.pdf
 ```
 
 Plot H3K27me3 heatmap for sperm
@@ -214,7 +214,7 @@ cd Steg2026/SpermatogoniaRNA/results/03_dea/B6-F0-Male-Basemodel/RRHO_Sperm_BH/
 
 computeMatrix reference-point -R genes.tss.dd.bed genes.tss.uu.bed genes.tss.background.bed --referencePoint "center" -S   Steg2026/Public_data/H3K27me3/tracks_sperm.bw -b 2000 -a 2000 --skipZeros -p 6 -o RRHO.genes.tss.K27me3.onlySperm.mat.gz --outFileSortedRegions RRHO.genes.tss.K27me3.onlySperm.bed
 
-plotHeatmap -m RRHO.genes.tss.K27me3.onlySperm.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 -min 0 -max 0.3 --heatmapWidth 2 --colorMap 'PuBu' --whatToShow 'plot, heatmap and colorbar' --plotType se --samplesLabel  "Sperm K27me3" --regionsLabel "UU" "DD" "Random background" -out RRHO.genes.tss.K27me3.onlySperm.pdf
+plotHeatmap -m RRHO.genes.tss.K27me3.onlySperm.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 -min 0 -max 0.3 --heatmapWidth 2 --colorMap 'PuBu' --whatToShow 'plot, heatmap and colorbar' --plotType se --samplesLabel  "Sperm K27me3" --regionsLabel "DD" "UU" "Random background" -out RRHO.genes.tss.K27me3.onlySperm.pdf
 ```
 
 Plot DNAme heatmap for spermatogonia
@@ -223,7 +223,7 @@ cd Steg2026/SpermatogoniaRNA/results/03_dea/B6-F0-Male-Basemodel/RRHO_Sperm_BH/
 
 computeMatrix reference-point -R genes.tss.dd.bed genes.tss.uu.bed genes.tss.background.bed --referencePoint "center" -S  Steg2026/Public_data/DNAme/ERX3646683/tracks_merged.bw -b 2000 -a 2000 --skipZeros -p 6 -o RRHO.genes.tss.DNAme.onlySPG.mat.gz --outFileSortedRegions RRHO.genes.tss.DNAme.onlySPG.bed
 
-plotHeatmap -m RRHO.genes.tss.DNAme.onlySPG.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 --heatmapWidth 2 --colorMap 'bone_r' --whatToShow 'plot, heatmap and colorbar' --plotType se --samplesLabel  "Spermatogonia DNAme"  --regionsLabel "UU" "DD" "Random background" -out RRHO.genes.tss.DNAme.onlySPG.pdf
+plotHeatmap -m RRHO.genes.tss.DNAme.onlySPG.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 --heatmapWidth 2 --colorMap 'bone_r' --whatToShow 'plot, heatmap and colorbar' --plotType se --samplesLabel  "Spermatogonia DNAme"  --regionsLabel "DD" "UU" "Random background" -out RRHO.genes.tss.DNAme.onlySPG.pdf
 ```
 
 Plot DNAme heatmap for sperm
@@ -232,7 +232,7 @@ cd Steg2026/SpermatogoniaRNA/results/03_dea/B6-F0-Male-Basemodel/RRHO_Sperm_BH/
 
 computeMatrix reference-point -R genes.tss.dd.bed genes.tss.uu.bed genes.tss.background.bed --referencePoint "center" -S  Steg2026/Other_data/Sperm_EMseq/tracks_merged.bw -b 2000 -a 2000 --skipZeros -p 6 -o RRHO.genes.tss.DNAme.onlySperm.mat.gz --outFileSortedRegions RRHO.genes.tss.DNAme.onlySperm.bed
 
-plotHeatmap -m RRHO.genes.tss.DNAme.onlySperm.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 --heatmapWidth 2 --zMin 0 --zMax 0.2  --colorMap 'PuBu' --whatToShow 'plot, heatmap and colorbar' --plotType se --samplesLabel  "Sperm DNAme"  --regionsLabel "UU" "DD" "Random background" -out RRHO.genes.tss.DNAme.onlySperm.pdf
+plotHeatmap -m RRHO.genes.tss.DNAme.onlySperm.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 --heatmapWidth 2 --zMin 0 --zMax 0.2  --colorMap 'PuBu' --whatToShow 'plot, heatmap and colorbar' --plotType se --samplesLabel  "Sperm DNAme"  --regionsLabel "DD" "UU" "Random background" -out RRHO.genes.tss.DNAme.onlySperm.pdf
 ```
 
 
