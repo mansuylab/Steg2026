@@ -1,0 +1,31 @@
+# Config for Snakefile_IRFinder (intron retention analysis in sperm)
+
+# Output folder of UMI deduplication from the main SpermRNA workflow
+input_dir: "results/01_preprocess/11_umi_deduplicated"
+
+samples:
+  - B6-F0-03
+  - B6-F0-05
+  - B6-F0-06
+  - B6-F0-09
+  - B6-F0-11
+  - B6-F0-15
+  - B6-F0-20
+  - B6-F0-24
+  - B6-F0-25
+  - B6-F0-26
+  - B6-F0-36
+  - B6-F0-38
+  - B6-F0-44
+  - B6-F0-61
+  - B6-F0-64
+  - B6-F0-66
+
+# Reference files
+star_genome_dir: "Steg2026/auxiliary/genomes/mm10_star_gencode_125"
+GTF_file: "Steg2026/auxiliary/genomes/mm10_raw/gencode.vM25.annotation.gtf"
+irfinder_ref_dir: "Steg2026/auxiliary/genomes/mm10_irfinder_ref"
+genome_fasta: "Steg2026/auxiliary/genomes/mm10_raw/mm10.fa"
+
+# IRFinder-S container image
+irfinder_container: "Steg2026/auxiliary/singularity_images/IRFinder"

@@ -22,8 +22,8 @@ mixture_name <- "LPD2_SSC_counts_rounded.txt"
 sif_file <- "./cibersortx-fractions.sif"
 
 # Define the specific reference datasets to be used in this analysis
-# Could be generated from PrepHermann2018.R
-reference_names <- c("Hermann2018_Adu_ID4sorted.txt")
+# Could be generated from PrepHermann2018.R and PrepArzate2027.R
+reference_names <- c("Hermann2018_Adu_ID4sorted.txt","Arzate2027_Control.txt")
 
 # Tag to be appended to output folders
 folder_tag <- "LPD2_SCRNA_"

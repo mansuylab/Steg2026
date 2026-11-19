@@ -1,0 +1,163 @@
+# Secondary workflow for intron retention analysis in sperm.
+# Requires the UMI-deduplicated BAM files of the main SpermRNA workflow (Snakefile).
+# Reads are converted back to FASTQ and realigned with STAR (two-pass) for IRFinder-S.
+
+configfile: "config_IRFinder.yaml"
+
+input_files = expand(
+    [
+    "results/01_preprocess/21_irfinder/{sample}/IRFinder-IR-nondir.txt"
+    ],
+    sample=config["samples"]
+) + [
+    "results/01_preprocess/21_irfinder/irfinder_matrix_IRratio.txt",
+    "results/01_preprocess/21_irfinder/irfinder_matrix_IntronDepth.txt",
+    "results/01_preprocess/21_irfinder/irfinder_matrix_SpliceExact.txt",
+    "results/02_qc_plots/18_irfinder/multiqc_report.html"
+]
+
+rule all:
+    input:
+        input_files
+
+rule bam2fastq:
+    input:
+        bam=config["input_dir"] + "/{sample}_trimmed_Aligned_sorted_dedup.bam"
+    output:
+        R1=temp("results/01_preprocess/19_bam2fastq/{sample}_R1.fastq.gz"),
+        R2=temp("results/01_preprocess/19_bam2fastq/{sample}_R2.fastq.gz")
+    log:
+        "logs/19_bam2fastq/{sample}.log"
+    conda:
+        "Steg2026/envs/star.yaml"
+    threads: 4
+    shell:
+        """
+        samtools collate -@ {threads} -u -O {input.bam} \
+            | samtools fastq -@ {threads} \
+                -1 {output.R1} \
+                -2 {output.R2} \
+                -0 /dev/null -s /dev/null \
+                -n \
+                - 2> {log}
+        """
+
+rule star_irfinder:
+    input:
+        R1="results/01_preprocess/19_bam2fastq/{sample}_R1.fastq.gz",
+        R2="results/01_preprocess/19_bam2fastq/{sample}_R2.fastq.gz"
+    output:
+        bam="results/01_preprocess/20_star_irfinder/{sample}_Aligned.sortedByCoord.out.bam",
+        idx="results/01_preprocess/20_star_irfinder/{sample}_Aligned.sortedByCoord.out.bam.bai"
+    log:
+        star="logs/20_star_irfinder/{sample}_staralign.log"
+    conda:
+        "Steg2026/envs/star.yaml"
+    threads: 8
+    shell:
+        """
+        STAR \
+            --runThreadN {threads} \
+            --genomeDir {config[star_genome_dir]} \
+            --sjdbGTFfile {config[GTF_file]} \
+            --readFilesCommand zcat \
+            --readFilesIn {input.R1} {input.R2} \
+            --outFileNamePrefix results/01_preprocess/20_star_irfinder/{wildcards.sample}_ \
+            --outSAMtype BAM SortedByCoordinate \
+            --twopassMode Basic \
+            --outSAMattributes NH HI AS NM MD \
+            --outSAMstrandField intronMotif \
+            --outFilterIntronMotifs RemoveNoncanonical \
+            --alignIntronMin 20 \
+            --alignIntronMax 1000000 \
+            --alignMatesGapMax 1000000 \
+            > {log.star} 2>&1
+
+        # Generate index for the output BAM file
+        samtools index {output.bam}
+        """
+
+rule irfinder:
+    input:
+        bam="results/01_preprocess/20_star_irfinder/{sample}_Aligned.sortedByCoord.out.bam",
+        idx="results/01_preprocess/20_star_irfinder/{sample}_Aligned.sortedByCoord.out.bam.bai"
+    output:
+        "results/01_preprocess/21_irfinder/{sample}/IRFinder-IR-nondir.txt"
+    log:
+        "logs/21_irfinder/{sample}.log"
+    container:
+        config["irfinder_container"]
+    threads: 8
+    shell:
+        """
+        IRFinder BAM \
+            -r {config[irfinder_ref_dir]} \
+            -d results/01_preprocess/21_irfinder/{wildcards.sample} \
+            -t {threads} \
+            {input.bam} > {log} 2>&1
+        """
+
+# Combine IRFinder results of all samples into matrices (IRratio, IntronDepth, SpliceExact)
+rule irfinder_matrix:
+    input:
+        expand("results/01_preprocess/21_irfinder/{sample}/IRFinder-IR-nondir.txt",
+               sample=config["samples"])
+    output:
+        irratio="results/01_preprocess/21_irfinder/irfinder_matrix_IRratio.txt",
+        intdepth="results/01_preprocess/21_irfinder/irfinder_matrix_IntronDepth.txt",
+        spliceexact="results/01_preprocess/21_irfinder/irfinder_matrix_SpliceExact.txt"
+    log:
+        "logs/21_irfinder/irfinder_matrix.log"
+    threads: 1
+    run:
+        import pandas as pd
+        import os
+
+        dfs_irratio = []
+        dfs_intdepth = []
+        dfs_spliceexact = []
+
+        for f in input:
+            sample = os.path.basename(os.path.dirname(f))
+            df = pd.read_csv(f, sep="\t", usecols=["Chr", "Start", "End", "Name", "Strand",
+                                                     "IRratio", "IntronDepth", "SpliceExact"])
+            dfs_irratio.append(df[["Chr", "Start", "End", "Name", "Strand", "IRratio"]].rename(columns={"IRratio": sample}))
+            dfs_intdepth.append(df[["Chr", "Start", "End", "Name", "Strand", "IntronDepth"]].rename(columns={"IntronDepth": sample}))
+            dfs_spliceexact.append(df[["Chr", "Start", "End", "Name", "Strand", "SpliceExact"]].rename(columns={"SpliceExact": sample}))
+
+        key_cols = ["Chr", "Start", "End", "Name", "Strand"]
+
+        matrix_irratio = dfs_irratio[0]
+        for df in dfs_irratio[1:]:
+            matrix_irratio = matrix_irratio.merge(df, on=key_cols)
+
+        matrix_intdepth = dfs_intdepth[0]
+        for df in dfs_intdepth[1:]:
+            matrix_intdepth = matrix_intdepth.merge(df, on=key_cols)
+
+        matrix_spliceexact = dfs_spliceexact[0]
+        for df in dfs_spliceexact[1:]:
+            matrix_spliceexact = matrix_spliceexact.merge(df, on=key_cols)
+
+        matrix_irratio.to_csv(output.irratio, sep="\t", index=False)
+        matrix_intdepth.to_csv(output.intdepth, sep="\t", index=False)
+        matrix_spliceexact.to_csv(output.spliceexact, sep="\t", index=False)
+
+rule multiqc:
+    input:
+        expand("results/01_preprocess/21_irfinder/{sample}/IRFinder-IR-nondir.txt",
+               sample=config["samples"])
+    output:
+        "results/02_qc_plots/18_irfinder/multiqc_report.html"
+    log:
+        "logs/21_irfinder/multiqc.log"
+    conda:
+        "Steg2026/envs/multiqc124.yaml"
+    threads: 1
+    shell:
+        """
+        multiqc \
+            results/01_preprocess/20_star_irfinder/ \
+            -o results/02_qc_plots/18_irfinder/ \
+            > {log} 2>&1
+        """

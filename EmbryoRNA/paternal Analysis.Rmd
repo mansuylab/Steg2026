@@ -16,8 +16,12 @@ suppressPackageStartupMessages({
   library(gprofiler2)
   library(rtracklayer)
   library(ggrepel)
+  library(pheatmap)
   library(TxDb.Mmusculus.UCSC.mm10.knownGene)
   library(org.Mm.eg.db)
+  library(biomaRt)
+  library(data.table)
+  library(ggpubr)
   library(dplyr)
 })
 ```
@@ -77,6 +81,8 @@ tf_plot <- ggplot(df, aes(x = Odds.Ratio, y = log_padj)) +
                   box.padding = 0.3,
                   point.padding = 0.2,
                   max.overlaps = 15) +
+  xlim(0,6) +
+  ylim(0,30) + 
   labs(x = "Odds ratio", y = expression(-log[10](adj.p-value))) +
   theme_cowplot(font_size = 8, line_size = 0.5)
 
@@ -172,6 +178,8 @@ tf_plot <- ggplot(df, aes(x = Odds.Ratio, y = log_padj)) +
                   box.padding = 0.3,
                   point.padding = 0.2,
                   max.overlaps = 15) +
+  xlim(0,6) +
+  ylim(0,30) + 
   labs(x = "Odds ratio", y = expression(-log[10](adj.p-value))) +
   theme_cowplot(font_size = 8, line_size = 0.5)
 
@@ -217,7 +225,7 @@ txdb <- TxDb.Mmusculus.UCSC.mm10.knownGene
 # Extract all the transcript names (TXNAME) as keys
 k <- keys(txdb, keytype = "TXNAME")
 # Create a mapping (tx2gene) from TXNAME (transcript IDs) to GENEID (UCSC Entrez IDs)
-tx2gene <- select(txdb, keys = k, columns = "GENEID", keytype = "TXNAME")
+tx2gene <- AnnotationDbi::select(txdb, keys = k, columns = "GENEID", keytype = "TXNAME")
 # Use org.Mm.eg.db to map UCSC Entrez IDs to Ensembl Gene IDs
 ensembl_map <- mapIds(org.Mm.eg.db, 
                       keys = tx2gene$GENEID, 
@@ -308,6 +316,282 @@ ggsave(filename = "barplot.overlap.trxs.pdf", plot = barplot.trxs,path = "Steg20
 ```
 
 
+Intron retention and transcript integrity of Sperm2Embryo genes in sperm and in the paternal transcriptome of two-cell embryos.
+Load Sperm2Embryo genes
+```{r}
+gene_list <- read.csv("Steg2026/EmbryoRNA/results/04_sperm_to_embryo/Sperm2EmbryoGenes.csv")$X
+```
+
+Intron retention analysis with IRFinder-S.
+IRFinder-S was run on paternal (genome1) and maternal (genome2) reads of two-cell embryos with Snakefile_IRFinder, and on sperm reads with the SpermRNA workflow.
+Load IRFinder matrices of two-cell embryos and run analysis on the paternal transcriptome
+```{r}
+# Load embryo matrices
+IRratio <- fread("Steg2026/EmbryoRNA/results/01_preprocess/23_irfinder/irfinder_matrix_IRratio.txt")
+IntronDepth <- fread("Steg2026/EmbryoRNA/results/01_preprocess/23_irfinder/irfinder_matrix_IntronDepth.txt")
+
+# Create rowData with gene names and intron type
+rowData_embryo <- IRratio[, 1:5]
+rowData_embryo[, gene := tstrsplit(Name, "/")[[1]]]
+rowData_embryo[, intron_type := tstrsplit(Name, "/")[[3]]]
+
+# Create matrices with row IDs
+row_ids <- paste(rowData_embryo$Chr, rowData_embryo$Start, rowData_embryo$End,
+                 rowData_embryo$Name, rowData_embryo$Strand, sep = "_")
+mat_IRratio <- as.matrix(IRratio[, 6:ncol(IRratio)])
+mat_IntronDepth <- as.matrix(IntronDepth[, 6:ncol(IntronDepth)])
+rownames(mat_IRratio) <- row_ids
+rownames(mat_IntronDepth) <- row_ids
+
+# Subset for paternal transcriptome (genome1)
+twocell_genome1_cols <- grep("TwoCell.*genome1", colnames(mat_IRratio), value = TRUE)
+
+mat_IRratio_input <- mat_IRratio[, twocell_genome1_cols]
+mat_IntronDepth_input <- mat_IntronDepth[, twocell_genome1_cols]
+
+# Load function
+source("Steg2026/scripts/run_irfinder_analysis.R")
+
+# Run analysis
+result_embryo_g1 <- run_irfinder_analysis(
+  mat_IRratio     = mat_IRratio_input,
+  mat_IntronDepth = mat_IntronDepth_input,
+  rowData         = rowData_embryo,
+  gene_list       = gene_list,
+  min_samples     = 3,
+  min_depth       = 5
+)
+
+# Extract candidate and background IRratios
+candidate_g1 <- result_embryo_g1$candidate_IR
+background_g1 <- result_embryo_g1$background_IR
+
+cat("Embryo genome1 - Candidate median:", median(candidate_g1), "\n")
+cat("Embryo genome1 - Background median:", median(background_g1), "\n")
+cat("p-value:", result_embryo_g1$p_value, "\n")
+```
+
+Load IRFinder matrices of sperm and run analysis with the same thresholds
+```{r}
+# Load sperm matrices
+sperm_IRratio <- fread("Steg2026/SpermRNA/results/01_preprocess/21_irfinder/irfinder_matrix_IRratio.txt")
+sperm_IntronDepth <- fread("Steg2026/SpermRNA/results/01_preprocess/21_irfinder/irfinder_matrix_IntronDepth.txt")
+
+# Create rowData with gene names and intron type
+rowData_sperm <- sperm_IRratio[, 1:5]
+rowData_sperm[, gene := tstrsplit(Name, "/")[[1]]]
+rowData_sperm[, intron_type := tstrsplit(Name, "/")[[3]]]
+
+# Create matrices with row IDs
+row_ids_sperm <- paste(rowData_sperm$Chr, rowData_sperm$Start, rowData_sperm$End,
+                       rowData_sperm$Name, rowData_sperm$Strand, sep = "_")
+mat_IRratio_sperm <- as.matrix(sperm_IRratio[, 6:ncol(sperm_IRratio)])
+mat_IntronDepth_sperm <- as.matrix(sperm_IntronDepth[, 6:ncol(sperm_IntronDepth)])
+rownames(mat_IRratio_sperm) <- row_ids_sperm
+rownames(mat_IntronDepth_sperm) <- row_ids_sperm
+
+# Run analysis
+result_sperm <- run_irfinder_analysis(
+  mat_IRratio     = mat_IRratio_sperm,
+  mat_IntronDepth = mat_IntronDepth_sperm,
+  rowData         = rowData_sperm,
+  gene_list       = gene_list,
+  min_samples     = 3,
+  min_depth       = 5
+)
+
+# Extract candidate and background IRratios
+candidate_sperm <- result_sperm$candidate_IR
+background_sperm <- result_sperm$background_IR
+
+cat("Sperm - Candidate median:", median(candidate_sperm), "\n")
+cat("Sperm - Background median:", median(background_sperm), "\n")
+cat("p-value:", result_sperm$p_value, "\n")
+```
+
+Plot intron retention as violin plots
+```{r}
+# Combine embryo and sperm results
+plot_df <- data.frame(
+    IRratio = c(candidate_g1, background_g1,
+                candidate_sperm, background_sperm),
+    Group = c(rep("Candidate", length(candidate_g1)),
+              rep("Background", length(background_g1)),
+              rep("Candidate", length(candidate_sperm)),
+              rep("Background", length(background_sperm))),
+    Dataset = c(rep("Embryo genome1\n(paternal)", length(candidate_g1) + length(background_g1)),
+                rep("Sperm", length(candidate_sperm) + length(background_sperm)))
+)
+
+plot_df$Group <- factor(plot_df$Group, levels = c("Background", "Candidate"))
+plot_df$Dataset <- factor(plot_df$Dataset, levels = c("Sperm", "Embryo genome1\n(paternal)"))
+
+# Plot
+p_violin <- ggplot(plot_df, aes(x = Group, y = IRratio, fill = Group)) +
+    geom_violin(trim = F, bounds = c(0,1)) +
+    stat_summary(fun = median, geom = "crossbar", width = 0.5, fatten = 2, color = "black") +
+    facet_wrap(~Dataset) +
+    stat_compare_means(method = "wilcox.test",
+                       label = "p.format",
+                       label.x = 1.5,
+                       label.y = 0.95) +
+    scale_fill_manual(values = c("Background" = "#B3B3B3", "Candidate" = "#5A7B9C")) +
+    scale_y_continuous(limits = c(0, 1)) +
+    theme_cowplot(font_size = 8) +
+    theme(
+        legend.position = "none",
+        strip.text = element_text(size = 8, face = "bold"),
+        axis.title = element_text(size = 8),
+        axis.text = element_text(size = 7)
+    ) +
+    labs(
+        title = "Intron Retention in Candidate vs Background Genes",
+        x = "",
+        y = "Mean IRratio per gene"
+    )
+
+ggsave(filename = "irfinder_violin.pdf", plot = p_violin, path = "Steg2026/EmbryoRNA/results/04_sperm_to_embryo/", width = 9, height = 5, units = "cm")
+```
+
+Transcript integrity analysis.
+TIN scores were calculated on paternal (genome1) reads of two-cell embryos with Snakefile_IRFinder, and on sperm reads with the SpermRNA workflow.
+Load TIN scores of the paternal transcriptome of two-cell embryos and map transcripts to gene names
+```{r}
+# Load genome1 TIN matrix
+tin_g1 <- read.table("Steg2026/EmbryoRNA/results/01_preprocess/24_genebody_coverage/merged_genome1.tin.tsv",
+                     header = TRUE, sep = "\t", row.names = 1)
+cat("Dimensions:", nrow(tin_g1), "x", ncol(tin_g1), "\n")
+
+# Strip version numbers for BioMart query
+tin_ids <- gsub("\\..*", "", rownames(tin_g1))
+
+# Map transcript IDs to gene names with BioMart
+mart <- useMart("ensembl", dataset = "mmusculus_gene_ensembl")
+
+tx_map <- getBM(
+    attributes = c("ensembl_transcript_id", "external_gene_name"),
+    filters    = "ensembl_transcript_id",
+    values     = tin_ids,
+    mart       = mart
+)
+
+# Build mapping dataframe
+tx_map$ensembl_transcript_id_versioned <- rownames(tin_g1)[match(tx_map$ensembl_transcript_id, tin_ids)]
+tx_map <- tx_map[tx_map$external_gene_name != "", ]
+colnames(tx_map) <- c("transcript_id", "gene_name", "transcript_id_versioned")
+
+cat("Transcripts:", nrow(tx_map), "\n")
+cat("Unique genes:", length(unique(tx_map$gene_name)), "\n")
+cat("Sperm2Embryo transcripts:", sum(tx_map$gene_name %in% gene_list), "\n")
+cat("Sperm2Embryo genes covered:", length(unique(tx_map$gene_name[tx_map$gene_name %in% gene_list])), "\n")
+```
+
+Filter lowly expressed transcripts and calculate median TIN per transcript in two-cell embryos
+```{r}
+# Subset TIN matrix for mapped transcripts
+tin_g1_mapped <- tin_g1[tx_map$transcript_id_versioned, ]
+tin_g1_mapped$gene_name <- tx_map$gene_name
+tin_g1_mapped$is_GOI    <- tx_map$gene_name %in% gene_list
+
+# Keep transcripts with TIN > 0 in at least 10% of samples
+twocell_cols <- grep("TwoCell", colnames(tin_g1_mapped), value = TRUE)
+
+tin_values  <- tin_g1_mapped[, twocell_cols]
+n_expressed <- rowSums(tin_values > 0)
+keep        <- n_expressed >= (0.1 * length(twocell_cols))
+
+tin_filtered <- tin_g1_mapped[keep, ]
+cat("Sperm2Embryo transcripts:", sum(tin_filtered$is_GOI), "\n")
+cat("Background transcripts:", sum(!tin_filtered$is_GOI), "\n")
+
+# Replace 0 with NA and compute median TIN per transcript
+tin_values_filtered <- tin_filtered[, twocell_cols]
+tin_values_filtered[tin_values_filtered == 0] <- NA
+tin_filtered$median_TIN <- apply(tin_values_filtered, 1, median, na.rm = TRUE)
+```
+
+Test and plot TIN scores in two-cell embryos
+```{r}
+plot_df <- tin_filtered %>%
+    dplyr::select(gene_name, is_GOI, median_TIN) %>%
+    mutate(group = ifelse(is_GOI, "GOI", "Background"))
+
+wilcox_result <- wilcox.test(median_TIN ~ group, data = plot_df, alternative = "two.sided")
+
+cat("Wilcoxon p-value:", wilcox_result$p.value, "\n")
+cat("GOI median TIN:", median(plot_df$median_TIN[plot_df$is_GOI], na.rm = TRUE), "\n")
+cat("Background median TIN:", median(plot_df$median_TIN[!plot_df$is_GOI], na.rm = TRUE), "\n")
+
+p_embryo_tin <- ggplot(plot_df, aes(x = group, y = median_TIN, fill = group)) +
+    geom_violin(trim = FALSE, bounds = c(0,100), alpha = 0.7) +
+    geom_boxplot(width = 0.15, outlier.shape = NA, alpha = 1) +
+    scale_fill_manual(values = c("GOI" = "#5A7B9C", "Background" = "#B3B3B3")) +
+    labs(title    = "TIN scores - TwoCell paternal (genome1)",
+         subtitle = paste0("Wilcoxon p = ", signif(wilcox_result$p.value, 3)),
+         x        = NULL,
+         y        = "Median TIN score",
+         fill     = NULL) +
+    theme_cowplot(font_size = 8) +
+    theme(legend.position = "none")
+
+ggsave(filename = "Embryo.violin.TIN.pdf", plot = p_embryo_tin, path = "Steg2026/EmbryoRNA/results/04_sperm_to_embryo/", width = 5, height = 5, units = "cm")
+```
+
+Load TIN scores of sperm, filter, test and plot with the same settings
+```{r}
+# Load sperm TIN matrix
+tin_sperm <- read.table("Steg2026/SpermRNA/results/01_preprocess/14_TinScore/merged.tsv",
+                        header = TRUE, sep = "\t", row.names = 1)
+cat("Dimensions:", nrow(tin_sperm), "x", ncol(tin_sperm), "\n")
+
+# Map transcripts with the mapping from above
+tin_sperm_mapped <- tin_sperm[tx_map$transcript_id_versioned, ]
+tin_sperm_mapped$gene_name <- tx_map$gene_name
+tin_sperm_mapped$is_GOI    <- tx_map$gene_name %in% gene_list
+
+# Keep transcripts with TIN > 0 in at least 10% of samples
+sperm_cols <- colnames(tin_sperm)
+tin_values_sperm <- tin_sperm_mapped[, sperm_cols]
+n_expressed_sperm <- rowSums(tin_values_sperm > 0)
+keep_sperm <- n_expressed_sperm >= (0.10 * length(sperm_cols))
+
+tin_filtered_sperm <- tin_sperm_mapped[keep_sperm, ]
+cat("Sperm2Embryo transcripts:", sum(tin_filtered_sperm$is_GOI), "\n")
+cat("Background transcripts:", sum(!tin_filtered_sperm$is_GOI), "\n")
+
+# Replace 0 with NA and compute median TIN per transcript
+tin_values_filtered_sperm <- tin_filtered_sperm[, sperm_cols]
+tin_values_filtered_sperm[tin_values_filtered_sperm == 0] <- NA
+tin_filtered_sperm$median_TIN <- apply(tin_values_filtered_sperm, 1, median, na.rm = TRUE)
+
+# Test and plot
+plot_df_sperm <- tin_filtered_sperm %>%
+    dplyr::select(gene_name, is_GOI, median_TIN) %>%
+    mutate(group = ifelse(is_GOI, "GOI", "Background"))
+
+wilcox_sperm <- wilcox.test(median_TIN ~ group, data = plot_df_sperm, alternative = "two.sided")
+
+cat("Sperm Wilcoxon p-value:", wilcox_sperm$p.value, "\n")
+cat("GOI median TIN:", median(plot_df_sperm$median_TIN[plot_df_sperm$is_GOI], na.rm = TRUE), "\n")
+cat("Background median TIN:", median(plot_df_sperm$median_TIN[!plot_df_sperm$is_GOI], na.rm = TRUE), "\n")
+
+p_sperm_tin <- ggplot(plot_df_sperm, aes(x = group, y = median_TIN, fill = group)) +
+    geom_violin(trim = FALSE, bounds = c(0,100), alpha = 0.7) +
+    geom_boxplot(width = 0.15, outlier.shape = NA, alpha = 1) +
+    scale_fill_manual(values = c("GOI" = "#5A7B9C", "Background" = "#B3B3B3")) +
+    labs(title    = "TIN scores - Sperm",
+         subtitle = paste0("Wilcoxon p = ", signif(wilcox_sperm$p.value, 3)),
+         x        = NULL,
+         y        = "Median TIN score",
+         fill     = NULL) +
+    theme_cowplot(font_size = 8) +
+    theme(legend.position = "none")
+
+ggsave(filename = "Sperm.violin.TIN.pdf", plot = p_sperm_tin, path = "Steg2026/EmbryoRNA/results/04_sperm_to_embryo/", width = 5, height = 5, units = "cm")
+```
+
+
+
 Create .bed files at TSS of Sperm2Embryo Genes
 ```{r}
 # Find the Entrez ID for each of the sperm to embryo genes
@@ -344,25 +628,25 @@ genes.tss.background <- resize(genes.background, width = 1, fix = "start")
 export.bed(sample(unlist(genes.tss.background), size = nrow(Sperm2EmbryoGenes)), con = paste0(output,"genes.tss.background.bed"))
 ```
 
-Heatmap for H3K4me3 over gene start sides but with all genes, leaving out up and down, including maternal tracks
+Heatmap for H3K4me3 over TSSs of sperm-to-embryo genes and background, including maternal tracks
 ```{bash engine.opts='-l', eval=F}
 computeMatrix reference-point -R Steg2026/EmbryoRNA/results/04_sperm_to_embryo/genes.tss.merged.bed Steg2026/EmbryoRNA/results/04_sperm_to_embryo/genes.tss.background.bed --referencePoint "center" -S Steg2026/Public_data/results/H3K4me3/Sperm_H3K4me3_rep1.bw Steg2026/Public_data/results/H3K4me3/PN5-zygote_H3K4me3_genome2.merged.bw Steg2026/Public_data/results/H3K4me3/2-cell-early_H3K4me3_genome2.merged.bw Steg2026/Public_data/results/H3K4me3/2-cell-late_H3K4me3_genome2.merged.bw Steg2026/Public_data/results/H3K4me3/Oocyte_H3K4me3_merged.bw Steg2026/Public_data/results/H3K4me3/PN5-zygote_H3K4me3_genome1.merged.bw Steg2026/Public_data/results/H3K4me3/2-cell-early_H3K4me3_genome1.merged.bw Steg2026/Public_data/results/H3K4me3/2-cell-late_H3K4me3_genome1.merged.bw -b 2000 -a 2000 --skipZeros -p 4 -o Steg2026/EmbryoRNA/results/04_sperm_to_embryo/H3K4me3.genes.tss.onlymerged.withMat.mat.gz --outFileSortedRegions Steg2026/EmbryoRNA/results/04_sperm_to_embryo/H3K4me3.genes.tss.onlymerged.withMat.bed
 
-plotHeatmap -m Steg2026/EmbryoRNA/results/04_sperm_to_embryo/H3K4me3.genes.tss.onlymerged.withMat.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 --heatmapWidth 2 --colorMap 'Blues' 'Blues' 'Blues' 'Blues' 'Purples' 'Purples' 'Purples' 'Purples' --whatToShow 'plot, heatmap and colorbar' --plotType se --samplesLabel "Sperm" "PN5 zygote pat" "TwoCell early pat" "TwoCell late pat" "Oocyte" "PN5 zygote mat" "TwoCell early mat" "TwoCell late mat" --regionsLabel "Sperm2Embryo genes" "Random background" -out Steg2026/EmbryoRNA/results/04_sperm_to_embryo/H3K4me3.genes.tss.heatmap.onlymerged.withMat.pdf
+plotHeatmap -m Steg2026/EmbryoRNA/results/04_sperm_to_embryo/H3K4me3.genes.tss.onlymerged.withMat.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 --heatmapWidth 2 --colorMap 'Blues' 'Blues' 'Blues' 'Blues' 'Purples' 'Purples' 'Purples' 'Purples' --whatToShow 'plot, heatmap and colorbar' --plotType se --samplesLabel "Sperm" "PN5 zygote pat" "TwoCell early pat" "TwoCell late pat" "Oocyte" "PN5 zygote mat" "TwoCell early mat" "TwoCell late mat" --regionsLabel "Sperm2Embryo genes" "Random background" --zMin 0 --zMax 1 --yMin 0 --yMax 0.5 -out Steg2026/EmbryoRNA/results/04_sperm_to_embryo/H3K4me3.genes.tss.heatmap.onlymerged.withMat.pdf
 ```
 
 Heatmap for ATAC signal in sperm
 ```{bash engine.opts='-l', eval=F}
 computeMatrix reference-point -R Steg2026/EmbryoRNA/results/04_sperm_to_embryo/genes.tss.merged.bed Steg2026/EmbryoRNA/results/04_sperm_to_embryo/genes.tss.background.bed --referencePoint "center" -S Steg2026/Other_data/SpermATAC/tracks_merged.bw -b 2000 -a 2000 --skipZeros -p 4 -o Steg2026/EmbryoRNA/results/04_sperm_to_embryo/ATAC.sperm.mat.gz --outFileSortedRegions Steg2026/EmbryoRNA/results/04_sperm_to_embryo/ATAC.sperm.bed
 
-plotHeatmap -m Steg2026/EmbryoRNA/results/04_sperm_to_embryo/ATAC.sperm.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 --heatmapWidth 2 --colorMap 'Blues' --whatToShow 'plot, heatmap and colorbar' --plotType se --samplesLabel "Sperm ATAC" --regionsLabel "Sperm2Embryo genes" "Random background" -out Steg2026/EmbryoRNA/results/04_sperm_to_embryo/ATAC.sperm.pdf
+plotHeatmap -m Steg2026/EmbryoRNA/results/04_sperm_to_embryo/ATAC.sperm.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 --heatmapWidth 2 --colorMap 'Blues' --whatToShow 'plot, heatmap and colorbar' --plotType se --samplesLabel "Sperm ATAC" --regionsLabel "Sperm2Embryo genes" "Random background" --zMin 0 --zMax 0.6 --yMin 0 --yMax 0.5 -out Steg2026/EmbryoRNA/results/04_sperm_to_embryo/ATAC.sperm.pdf
 ```
 
 Heatmap for DNAme signal in sperm
 ```{bash engine.opts='-l', eval=F}
 computeMatrix reference-point -R Steg2026/EmbryoRNA/results/04_sperm_to_embryo/genes.tss.merged.bed Steg2026/EmbryoRNA/results/04_sperm_to_embryo/genes.tss.background.bed --referencePoint "center" -S Steg2026/Other_data/Sperm_EMseq/tracks_merged.bw -b 2000 -a 2000 --skipZeros -p 8 -o Steg2026/EmbryoRNA/results/04_sperm_to_embryo/Sperm.DNAme.mat.gz --outFileSortedRegions Steg2026/EmbryoRNA/results/04_sperm_to_embryo/Sperm.DNAme.bed
 
-plotHeatmap -m Steg2026/EmbryoRNA/results/04_sperm_to_embryo/Sperm.DNAme.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 10 --colorMap 'Greys' --whatToShow 'plot, heatmap and colorbar' --samplesLabel "Sperm DNAme" -out Steg2026/EmbryoRNA/results/04_sperm_to_embryo/Sperm.DNAme.pdf
+plotHeatmap -m Steg2026/EmbryoRNA/results/04_sperm_to_embryo/Sperm.DNAme.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 10 --colorMap 'Greys' --whatToShow 'plot, heatmap and colorbar' --samplesLabel "Sperm DNAme" --zMin 0 --zMax 0.2 --yMin 0.05 --yMax 0.1 -out Steg2026/EmbryoRNA/results/04_sperm_to_embryo/Sperm.DNAme.pdf
 ```
 
 Heatmap with CG content around Sperm2Embryo genes
@@ -380,6 +664,6 @@ TMPDIR=./ bedGraphToBigWig Steg2026/references/mm10_GC.bedGraph Steg2026/referen
 # Plot
 computeMatrix reference-point -R Steg2026/EmbryoRNA/results/04_sperm_to_embryo/genes.tss.merged.bed Steg2026/EmbryoRNA/results/04_sperm_to_embryo/genes.tss.background.bed --referencePoint "center" -S Steg2026/references/mm10_CG/mm10_GC.bw -b 2000 -a 2000 --skipZeros -p 8 -o Steg2026/EmbryoRNA/results/04_sperm_to_embryo/CGcontent.genes.tss.mat.gz --outFileSortedRegions Steg2026/EmbryoRNA/results/04_sperm_to_embryo/CGcontent.genes.tss.bed
 
-plotHeatmap -m Steg2026/EmbryoRNA/results/04_sperm_to_embryo/CGcontent.genes.tss.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 --heatmapWidth 2 --colorMap 'YlOrBr' --whatToShow 'plot, heatmap and colorbar' -min 0 -max 1 --samplesLabel "CG content" -out Steg2026/EmbryoRNA/results/04_sperm_to_embryo/CGcontent.genes.tss.pdf
+plotHeatmap -m Steg2026/EmbryoRNA/results/04_sperm_to_embryo/CGcontent.genes.tss.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 --heatmapWidth 2 --colorMap 'YlOrBr' --whatToShow 'plot, heatmap and colorbar' --min 0 -max 1 --yMin 0.4 --yMax 0.7 --samplesLabel "CG content" -out Steg2026/EmbryoRNA/results/04_sperm_to_embryo/CGcontent.genes.tss.pdf
 ```
 

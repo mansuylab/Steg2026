@@ -1,0 +1,118 @@
+---
+title: "Embryo RNA variance partitioning"
+author: "Leonard C. Steg"
+date: '2026-09-02'
+output: html_document
+---
+
+```{r}
+suppressPackageStartupMessages({
+  library(SummarizedExperiment)
+  library(variancePartition)
+  library(BiocParallel)
+  library(limma)
+  library(ggplot2)
+})
+```
+
+Load results from DEA (mother as covariate) for the total, paternal and maternal transcriptomes
+```{r}
+se_paths <- c(
+  dedup    = "Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_dedup_mother/SE.rds",
+  paternal = "Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_pat_mother/SE.rds",
+  maternal = "Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/SE.rds"
+)
+
+output <- "Steg2026/EmbryoRNA/results/05_variance_partition/"
+
+if (!file.exists(output)){
+  dir.create(output, recursive = TRUE)
+}
+```
+
+Define model and cutoffs
+```{r}
+register(SnowParam(4))
+
+# Variance explained by father and mother (oocyte donor)
+form <- ~ (1|Father) + (1|Mother)
+
+# FDR cutoff for DEGs
+fdr_cut <- 0.05
+
+# Genes with more than 5% of variance explained by father
+father_cut <- 0.05
+```
+
+Function for variance partitioning and enrichment of DEGs among genes with variance explained by father
+```{r}
+run_varpart <- function(name, assay_name = "logcpm") {
+
+  se <- readRDS(se_paths[[name]])
+
+  meta <- as.data.frame(colData(se))
+  meta$Father <- factor(meta$Father)
+  meta$Mother <- factor(meta$Mother)
+
+  # Remove the diet group effect, so that father variance is estimated within groups
+  expr <- removeBatchEffect(assay(se, assay_name), batch = meta$Group)
+
+  # Variance partitioning
+  vp <- fitExtractVarPartModel(expr, form, meta)
+  saveRDS(vp, file = paste0(output, name, "_varpart.rds"))
+
+  plot.vp <- plotVarPart(sortCols(vp)) +
+    ggtitle(paste(name, "- within group"))
+
+  ggsave(paste0(name, "_varpart.pdf"), plot = plot.vp, path = output, width = 5, height = 5)
+
+  # Classify genes tested in the DEA as DEG and as having variance explained by father
+  padj <- rowData(se)$dea$padj
+  names(padj) <- rownames(se)
+
+  df <- data.frame(gene = rownames(vp), Father = vp$Father, padj = padj[rownames(vp)])
+  df <- df[!is.na(df$padj), ]
+  df$DEG <- df$padj < fdr_cut
+  df$high_father <- df$Father > father_cut
+
+  # Cumulative distribution of father variance for DEGs and non-DEGs
+  plot.ecdf <- ggplot(df, aes(Father, color = DEG)) +
+    stat_ecdf() +
+    geom_vline(xintercept = father_cut, linetype = "dashed") +
+    labs(title = name, x = "Father variance fraction (within group)", y = "Cumulative fraction of genes") +
+    theme_minimal()
+
+  ggsave(paste0(name, "_DEG_father_ecdf.pdf"), plot = plot.ecdf, path = output, width = 5, height = 4)
+
+  # Fisher's exact test for enrichment of DEGs among genes with variance explained by father
+  tab <- table(factor(df$DEG, c(FALSE, TRUE)), factor(df$high_father, c(FALSE, TRUE)))
+  ft <- fisher.test(tab)
+
+  write.csv(df[df$DEG & df$high_father, ], file = paste0(output, name, "_DEGs_highFather.csv"), row.names = FALSE)
+
+  # Summary
+  data.frame(
+    dataset = name,
+    median_Father = median(vp$Father),
+    median_Mother = median(vp$Mother),
+    n_tested = nrow(df),
+    n_DEG = sum(df$DEG),
+    n_highFather = sum(df$high_father),
+    n_DEG_highFather = sum(df$DEG & df$high_father),
+    expected_overlap = round(sum(df$DEG) * sum(df$high_father) / nrow(df), 1),
+    fisher_OR = unname(ft$estimate),
+    OR_low = ft$conf.int[1],
+    OR_high = ft$conf.int[2],
+    fisher_p = ft$p.value
+  )
+}
+```
+
+Run for total, paternal and maternal transcriptomes and save summary
+```{r}
+res <- do.call(rbind, lapply(names(se_paths), run_varpart))
+
+res
+
+write.csv(res, file = paste0(output, "varpart_DEG_father_summary.csv"), row.names = FALSE)
+```

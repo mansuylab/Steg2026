@@ -160,6 +160,8 @@ tf_plot <- ggplot(df, aes(x = Odds.Ratio, y = log_padj)) +
                   box.padding = 0.3,
                   point.padding = 0.2,
                   max.overlaps = 15) +
+  xlim(0,6) +
+  ylim(0,30) + 
   labs(x = "Odds ratio", y = expression(-log[10](adj.p-value))) +
   theme_cowplot(font_size = 8, line_size = 0.5)
 
@@ -387,16 +389,33 @@ genes.tss.background <- resize(genes.background, width = 1, fix = "start")
 export.bed(sample(unlist(genes.tss.background), size = nrow(res.mat[res.mat$dea.padj < 0.05,])), con = paste0(output,"genes.tss.background.bed"))
 ```
 
-Heatmap for H3K4me3 over gene start sides but with all genes, leaving out up and down, including maternal tracks
+Heatmap for H3K4me3 over TSSs of maternal DEGs and background, including maternal tracks
 ```{bash engine.opts='-l', eval=F}
-computeMatrix reference-point -R Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/genes.tss.sign.bed Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/genes.tss.background.bed --referencePoint "center" -S Steg2026/Public_data/results/H3K4me3/Sperm_H3K4me3_rep1.bw  Steg2026/Public_data/results/H3K4me3/PN5-zygote_H3K4me3_genome1.merged.bw Steg2026/Public_data/results/H3K4me3/2-cell-early_H3K4me3_genome1.merged.bw Steg2026/Public_data/results/H3K4me3/2-cell-late_H3K4me3_genome1.merged.bw -b 2000 -a 2000 --skipZeros -p 4 -o Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/H3K4me3.genes.tss.sign.mat.gz --outFileSortedRegions Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/H3K4me3.genes.tss.sign.bed
+computeMatrix reference-point -R Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/genes.tss.sign.bed Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/genes.tss.background.bed --referencePoint "center" -S Steg2026/Public_data/results/H3K4me3/Sperm_H3K4me3_rep1.bw Steg2026/Public_data/results/H3K4me3/PN5-zygote_H3K4me3_genome2.merged.bw Steg2026/Public_data/results/H3K4me3/2-cell-early_H3K4me3_genome2.merged.bw Steg2026/Public_data/results/H3K4me3/2-cell-late_H3K4me3_genome2.merged.bw Steg2026/Public_data/results/H3K4me3/Oocyte_H3K4me3_merged.bw Steg2026/Public_data/results/H3K4me3/PN5-zygote_H3K4me3_genome1.merged.bw Steg2026/Public_data/results/H3K4me3/2-cell-early_H3K4me3_genome1.merged.bw Steg2026/Public_data/results/H3K4me3/2-cell-late_H3K4me3_genome1.merged.bw -b 2000 -a 2000 --skipZeros -p 4 -o Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/H3K4me3.genes.tss.sign.mat.gz --outFileSortedRegions Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/H3K4me3.genes.tss.sign.bed
 
-plotHeatmap -m Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/H3K4me3.genes.tss.sign.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 --heatmapWidth 2 --colorMap 'Blues' 'Purples' 'Purples' 'Purples' --whatToShow 'plot, heatmap and colorbar' --plotType se --samplesLabel "Sperm" "PN5 zygote mat" "TwoCell early mat" "TwoCell late mat" --regionsLabel "Maternal DEGs" "Random background" -out Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/H3K4me3.genes.tss.sign.pdf
+plotHeatmap -m Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/H3K4me3.genes.tss.sign.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 --heatmapWidth 2 --colorMap 'Blues' 'Blues' 'Blues' 'Blues' 'Purples' 'Purples' 'Purples' 'Purples' --whatToShow 'plot, heatmap and colorbar' --plotType se --samplesLabel "Sperm" "PN5 zygote pat" "TwoCell early pat" "TwoCell late pat" "Oocyte" "PN5 zygote mat" "TwoCell early mat" "TwoCell late mat" --regionsLabel "Maternal DEGs" "Random background" --zMin 0 --zMax 1 --yMin 0 --yMax 0.5 -out Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/H3K4me3.genes.tss.sign.pdf
 ```
 
-Heatmap for ATAC DNAme and H3K27me3 in sperm cells at the maternal DEGs
-```{bash engine.opts='-l', eval=F}
-computeMatrix reference-point -R Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/genes.tss.sign.bed Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/genes.tss.background.bed --referencePoint "center" -S Steg2026/Other_data/SpermATAC/tracks_merged.bw Steg2026/Other_data/Sperm_EMseq/tracks_merged.bw Steg2026/Public_data/results/H3K27me3/Sperm_H3K27me3.bw -b 2000 -a 2000 --skipZeros -p 4 -o Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/Sperm.chromatin.genes.tss.sign.mat.gz --outFileSortedRegions Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/Sperm.chromatin.genes.tss.sign.bed
 
-plotHeatmap -m Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/Sperm.chromatin.genes.tss.sign.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 --heatmapWidth 2 --colorMap 'Blues' --whatToShow 'plot, heatmap and colorbar' --plotType se --samplesLabel "Sperm ATAC" "Sperm DNAme" "Sperm H3K27me3" --regionsLabel "Maternal DEGs" "Random background" -out Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/Sperm.chromatin.genes.tss.sign.pdf
+
+Heatmap for ATAC in sperm  at the maternal DEGs
+```{bash engine.opts='-l', eval=F}
+computeMatrix reference-point -R Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/genes.tss.sign.bed Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/genes.tss.background.bed --referencePoint "center" -S Steg2026/Other_data/SpermATAC/tracks_merged.bw -b 2000 -a 2000 --skipZeros -p 4 -o Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/Sperm.ATAC.genes.tss.sign.mat.gz --outFileSortedRegions Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/Sperm.ATAC.genes.tss.sign.bed
+
+plotHeatmap -m Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/Sperm.ATAC.genes.tss.sign.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 --heatmapWidth 2 --colorMap 'Blues' --whatToShow 'plot, heatmap and colorbar' --plotType se --samplesLabel "Sperm ATAC" --regionsLabel "Maternal DEGs" "Random background" --zMin 0 --zMax 0.6 --yMin 0 --yMax 0.5 -out Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/Sperm.ATAC.genes.tss.sign.pdf
 ```
+
+Heatmap for DNAme in sperm  at the maternal DEGs
+```{bash engine.opts='-l', eval=F}
+computeMatrix reference-point -R Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/genes.tss.sign.bed Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/genes.tss.background.bed --referencePoint "center" -S Steg2026/Other_data/Sperm_EMseq/tracks_merged.bw -b 2000 -a 2000 --skipZeros -p 4 -o Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/Sperm.DNAme.genes.tss.sign.mat.gz --outFileSortedRegions Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/Sperm.DNAme.genes.tss.sign.bed
+
+plotHeatmap -m Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/Sperm.DNAme.genes.tss.sign.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 --heatmapWidth 2 --colorMap  'Greys' --whatToShow 'plot, heatmap and colorbar' --plotType se --samplesLabel "Sperm DNAme" --regionsLabel "Maternal DEGs" "Random background" --zMin 0 --zMax 0.2 --yMin 0.05 --yMax 0.1 -out Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/Sperm.DNAme.genes.tss.sign.pdf
+```
+
+CG Content at maternal DEGs
+```{bash engine.opts='-l', eval=F}
+computeMatrix reference-point -R rSteg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/genes.tss.sign.bed Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/genes.tss.background.bed --referencePoint "center" -S Steg2026/references/mm10_CG/mm10_GC.bw -b 2000 -a 2000 --skipZeros -p 8 -o Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/CGContent.genes.tss.sign.mat.gz --outFileSortedRegions Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/CGContent.genes.tss.sign.bed
+
+plotHeatmap -m Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/CGContent.genes.tss.sign.mat.gz --refPointLabel "Peak center" --plotFileFormat "pdf" --heatmapHeight 4 --heatmapWidth 2 --colorMap 'YlOrBr' --whatToShow 'plot, heatmap and colorbar' -min 0 -max 1 --yMin 0.4 --yMax 0.7 --samplesLabel "CG content" -out Steg2026/EmbryoRNA/results/03_dea/TwoCell-Basemodel_mat_mother/CGContent.genes.tss.sign.pdf
+```
+
